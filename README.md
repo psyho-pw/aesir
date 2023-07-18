@@ -1,4 +1,4 @@
-# GoFiber Boilerplate
+# Aesir - inactivity monitoring slackbot
 
 ## Development
 ### Start application
