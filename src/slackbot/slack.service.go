@@ -16,8 +16,7 @@ type slackService struct {
 }
 
 func NewSlackService(config *common.Config) SlackService {
-	println(":::::::::::::::::::::::::::::::")
-	return &slackService{slackBotInstance: slack.New(config.Slack.AppToken)}
+	return &slackService{slackBotInstance: slack.New(config.Slack.Token)}
 
 }
 
