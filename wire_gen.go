@@ -4,9 +4,10 @@
 //go:build !wireinject
 // +build !wireinject
 
-package src
+package main
 
 import (
+	"aesir/src"
 	"aesir/src/common"
 	"aesir/src/common/database"
 	"aesir/src/slackbot"
@@ -25,10 +26,10 @@ func New() (*fiber.App, error) {
 	userHandler := users.NewUserHandler(userService)
 	slackService := slackbot.NewSlackService(config)
 	slackHandler := slackbot.NewSlackHandler(slackService)
-	app := NewApp(config, db, userHandler, slackHandler)
+	app := src.NewApp(config, db, userHandler, slackHandler)
 	return app, nil
 }
 
 // wire.go:
 
-var WireSet = wire.NewSet(AppSet)
+var WireSet = wire.NewSet(src.AppSet)

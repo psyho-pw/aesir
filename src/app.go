@@ -28,7 +28,11 @@ var AppSet = wire.NewSet(
 	NewApp,
 )
 
-func NewApp(config *common.Config, db *gorm.DB, userHandler users.UserHandler, slackHandler slackbot.SlackHandler) *fiber.App {
+func NewApp(
+	config *common.Config,
+	db *gorm.DB, userHandler users.UserHandler,
+	slackHandler slackbot.SlackHandler,
+) *fiber.App {
 	app := fiber.New(config.Fiber)
 
 	if !fiber.IsChild() {

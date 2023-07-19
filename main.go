@@ -1,7 +1,6 @@
 package main
 
 import (
-	"aesir/src"
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"
@@ -16,7 +15,7 @@ func init() {
 }
 
 func main() {
-	server, _ := src.New()
+	server, _ := New()
 	port := os.Getenv("PORT")
 	address := func(appEnv string) string {
 		if appEnv == "development" {

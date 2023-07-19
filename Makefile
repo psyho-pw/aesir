@@ -11,16 +11,17 @@ run:
 
 compile:
 	echo "Compiling for every OS and Platform"
-	go build -o out/${BINARY_NAME} main.go
-	GOOS=linux GOARCH=arm go build -o out/${BINARY_NAME}-linux-arm main.go
-    GOOS=linux GOARCH=arm64 go build -o out/${BINARY_NAME}-linux-arm64 main.go
-    GOOS=freebsd GOARCH=386 go build -o out/${BINARY_NAME}-freebsd-386 main.go
-	GOOS=windows GOARCH=386 go build -o out/${BINARY_NAME}-windows-386 main.go
+	go build -o out/${BINARY_NAME} main.go wire_gen.go
+	GOOS=linux GOARCH=arm go build -o out/${BINARY_NAME}-linux-arm main.go wire_gen.go
+    GOOS=linux GOARCH=arm64 go build -o out/${BINARY_NAME}-linux-arm64 main.go wire_gen.go
+    GOOS=freebsd GOARCH=386 go build -o out/${BINARY_NAME}-freebsd-386 main.go wire_gen.go
+	GOOS=windows GOARCH=386 go build -o out/${BINARY_NAME}-windows-386 main.go wire_gen.go
+	GOARCH=amd64 GOOS=darwin go build -o out/${BINARY_NAME}-darwin main.go wire_gen.go
+    GOARCH=amd64 GOOS=linux go build -o out/${BINARY_NAME}-linux main.go wire_gen.go
 
 build:
-	go build -o out/${BINARY_NAME} main.go
-	GOARCH=amd64 GOOS=darwin go build -o out/${BINARY_NAME}-darwin main.go
-	GOARCH=amd64 GOOS=linux go build -o out/${BINARY_NAME}-linux main.go
+	go build -o out/${BINARY_NAME} main.go wire_gen.go
+
 
 clean:
 	go clean -modcache
@@ -43,7 +44,7 @@ docker-run:
   		if [ "$$(docker ps -aq -f status=exited -f name=${BINARY_NAME})" ]; then \
   			docker rm ${BINARY_NAME}; \
         fi; \
-            docker run -it --name ${BINARY_NAME} -p 3000:3000  ${BINARY_NAME}; \
+            docker run -it --name ${BINARY_NAME} -p 8000:8000  ${BINARY_NAME}; \
     fi
 
 analysis:
