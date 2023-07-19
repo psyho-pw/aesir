@@ -1,7 +1,7 @@
 package common
 
 import (
-	"fiber/src/common/middlewares"
+	"aesir/src/common/middlewares"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/utils"

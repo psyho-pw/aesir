@@ -2,7 +2,7 @@ package users
 
 import "C"
 import (
-	"fiber/src/common/errors"
+	"aesir/src/common/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"gorm.io/gorm"

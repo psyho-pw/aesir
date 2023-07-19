@@ -1,8 +1,8 @@
 package middlewares
 
 import (
+	Errors "aesir/src/common/errors"
 	"errors"
-	Errors "fiber/src/common/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/mattn/go-colorable"
 	"github.com/sirupsen/logrus"

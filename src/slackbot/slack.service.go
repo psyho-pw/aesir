@@ -1,7 +1,9 @@
 package slackbot
 
 import (
-	"fiber/src/common"
+	"aesir/src/common"
+	"aesir/src/common/errors"
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
@@ -14,8 +16,10 @@ import (
 )
 
 type SlackService interface {
-	GetChannels() ([]slack.Channel, error)
-	GetChannel(channelId string) (*slack.Channel, error)
+	FindTeam() (*slack.TeamInfo, error)
+	FindChannels(teamId string) ([]slack.Channel, error)
+	FindChannel(channelId string) (*slack.Channel, error)
+	FindLatestChannelMessage(channelId string) (*slack.Message, error)
 	WithTx(tx *gorm.DB) SlackService
 }
 
@@ -120,7 +124,7 @@ func socketEventListener(client *socketmode.Client) {
 
 			client.Ack(*evt.Request, payload)
 		default:
-			logrus.Debugf("Unexpected event type received: %s\n", evt.Type)
+			logrus.Debugf("Unexpected event type received: %s", evt.Type)
 		}
 	}
 }
@@ -177,23 +181,33 @@ func NewSlackService(config *common.Config) SlackService {
 
 var SetService = wire.NewSet(NewSlackService)
 
-func (service *slackService) GetChannels() ([]slack.Channel, error) {
+func (service *slackService) FindTeam() (*slack.TeamInfo, error) {
+	team, err := service.client.GetTeamInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	return team, nil
+}
+
+func (service *slackService) FindChannels(teamId string) ([]slack.Channel, error) {
 	channels, _, err := service.client.GetConversations(
 		&slack.GetConversationsParameters{
 			ExcludeArchived: true,
 			Limit:           1000,
-			Types:           nil,
+			Types:           []string{"public_channel", "private_channel"},
+			TeamID:          teamId,
 		},
 	)
 	if err != nil {
-		logrus.Errorf("%s\n", err)
+		logrus.Errorf("%+v", err)
 		return nil, err
 	}
 
 	return channels, nil
 }
 
-func (service *slackService) GetChannel(channelId string) (*slack.Channel, error) {
+func (service *slackService) FindChannel(channelId string) (*slack.Channel, error) {
 	channel, err := service.client.GetConversationInfo(&slack.GetConversationInfoInput{
 		ChannelID: channelId,
 	})
@@ -201,7 +215,26 @@ func (service *slackService) GetChannel(channelId string) (*slack.Channel, error
 		return nil, err
 	}
 
-	return channel, err
+	return channel, nil
+}
+
+func (service *slackService) FindLatestChannelMessage(channelId string) (*slack.Message, error) {
+	getConversationHistoryResponse, err := service.client.GetConversationHistory(
+		&slack.GetConversationHistoryParameters{
+			ChannelID: channelId,
+			Limit:     1,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	messages := getConversationHistoryResponse.Messages
+	if messages == nil {
+		return nil, errors.New(fiber.StatusNotFound, "latest message not found")
+	}
+
+	return &messages[0], nil
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) SlackService {

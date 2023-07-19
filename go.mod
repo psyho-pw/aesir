@@ -1,4 +1,4 @@
-module fiber
+module aesir
 
 go 1.20
 

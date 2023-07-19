@@ -1,11 +1,11 @@
 package src
 
 import (
-	"fiber/src/common"
-	"fiber/src/common/database"
-	"fiber/src/common/middlewares"
-	"fiber/src/slackbot"
-	"fiber/src/users"
+	"aesir/src/common"
+	"aesir/src/common/database"
+	"aesir/src/common/middlewares"
+	"aesir/src/slackbot"
+	"aesir/src/users"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -18,7 +18,6 @@ import (
 )
 
 var AppSet = wire.NewSet(
-	NewApp,
 	common.ConfigSet,
 	database.DBSet,
 	users.SetRepository,
@@ -26,6 +25,7 @@ var AppSet = wire.NewSet(
 	users.SetHandler,
 	slackbot.SetService,
 	slackbot.SetHandler,
+	NewApp,
 )
 
 func NewApp(config *common.Config, db *gorm.DB, userHandler users.UserHandler, slackHandler slackbot.SlackHandler) *fiber.App {
@@ -58,10 +58,9 @@ func NewApp(config *common.Config, db *gorm.DB, userHandler users.UserHandler, s
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 
-	println(":::::::::::::::::::::::::::::::::::::")
-
-	users.NewRouter(v1, db, userHandler)
-	slackbot.NewRouter(v1, db, slackHandler)
+	// router setting
+	users.NewRouter(v1.Group("/users"), db, userHandler)
+	slackbot.NewRouter(v1.Group("/slack"), db, slackHandler)
 
 	return app
 }
