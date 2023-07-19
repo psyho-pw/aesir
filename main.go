@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fiber/src"
+	"aesir/src"
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"

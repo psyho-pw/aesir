@@ -7,10 +7,10 @@
 package src
 
 import (
-	"fiber/src/common"
-	"fiber/src/common/database"
-	"fiber/src/slackbot"
-	"fiber/src/users"
+	"aesir/src/common"
+	"aesir/src/common/database"
+	"aesir/src/slackbot"
+	"aesir/src/users"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 )

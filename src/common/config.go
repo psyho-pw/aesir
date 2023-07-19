@@ -1,7 +1,7 @@
 package common
 
 import (
-	"fiber/src/common/middlewares"
+	"aesir/src/common/middlewares"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/utils"
@@ -24,7 +24,7 @@ type DB struct {
 
 type SlackConfig struct {
 	AppToken string
-	Token    string
+	BotToken string
 }
 
 type Config struct {
@@ -60,7 +60,7 @@ func dbConfig() DB {
 func slackConfig() SlackConfig {
 	return SlackConfig{
 		AppToken: os.Getenv("SLACK_APP_TOKEN"),
-		Token:    os.Getenv("SLACK_TOKEN"),
+		BotToken: os.Getenv("SLACK_BOT_TOKEN"),
 	}
 }
 
@@ -116,11 +116,11 @@ func loggerConfig() {
 
 func csrfConfig() csrf.Config {
 	return csrf.Config{
-		KeyLookup:      "header:X-Csrf-Token", // string in the form of '<source>:<key>' that is used to extract token from the request
-		CookieName:     "csrf_",               // name of the session cookie
-		CookieSameSite: "Lax",                 // indicates if CSRF cookie is requested by SameSite
-		Expiration:     3 * time.Hour,         // expiration is the duration before CSRF token will expire
-		KeyGenerator:   utils.UUID,            // creates a new CSRF token
+		KeyLookup:      "header:X-Csrf-BotToken", // string in the form of '<source>:<key>' that is used to extract token from the request
+		CookieName:     "csrf_",                  // name of the session cookie
+		CookieSameSite: "Lax",                    // indicates if CSRF cookie is requested by SameSite
+		Expiration:     3 * time.Hour,            // expiration is the duration before CSRF token will expire
+		KeyGenerator:   utils.UUID,               // creates a new CSRF token
 	}
 }
 

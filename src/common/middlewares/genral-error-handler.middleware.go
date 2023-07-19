@@ -1,8 +1,8 @@
 package middlewares
 
 import (
+	Errors "aesir/src/common/errors"
 	"errors"
-	Errors "fiber/src/common/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/mattn/go-colorable"
 	"github.com/sirupsen/logrus"
@@ -19,9 +19,9 @@ var GeneralErrorHandler = func(ctx *fiber.Ctx, err error) error {
 		code = exception.Code
 	}
 
-	tx := ctx.Locals("TX").(*gorm.DB)
+	tx := ctx.Locals("TX")
 	if tx != nil {
-		tx.Rollback()
+		tx.(*gorm.DB).Rollback()
 		logrus.Error("Transaction rollback - GeneralErrorHandler")
 	}
 

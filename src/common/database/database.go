@@ -1,8 +1,8 @@
 package database
 
 import (
-	"fiber/src/common"
-	"fiber/src/users"
+	"aesir/src/common"
+	"aesir/src/users"
 	"fmt"
 	"github.com/google/wire"
 	"gorm.io/driver/mysql"
