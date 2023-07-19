@@ -7,6 +7,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
+	"gorm.io/gorm"
 	"log"
 	"os"
 	"strings"
@@ -14,6 +15,8 @@ import (
 
 type SlackService interface {
 	GetChannels() ([]slack.Channel, error)
+	GetChannel(channelId string) (*slack.Channel, error)
+	WithTx(tx *gorm.DB) SlackService
 }
 
 type slackService struct {
@@ -175,20 +178,32 @@ func NewSlackService(config *common.Config) SlackService {
 var SetService = wire.NewSet(NewSlackService)
 
 func (service *slackService) GetChannels() ([]slack.Channel, error) {
-	channels, nextCursor, err := service.client.GetConversations(
+	channels, _, err := service.client.GetConversations(
 		&slack.GetConversationsParameters{
-			Cursor:          "asd",
 			ExcludeArchived: true,
-			Limit:           10,
+			Limit:           1000,
 			Types:           nil,
-			TeamID:          "asd",
 		},
 	)
-	logrus.Info(nextCursor)
 	if err != nil {
 		logrus.Errorf("%s\n", err)
 		return nil, err
 	}
 
 	return channels, nil
+}
+
+func (service *slackService) GetChannel(channelId string) (*slack.Channel, error) {
+	channel, err := service.client.GetConversationInfo(&slack.GetConversationInfoInput{
+		ChannelID: channelId,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return channel, err
+}
+
+func (service *slackService) WithTx(tx *gorm.DB) SlackService {
+	return service
 }

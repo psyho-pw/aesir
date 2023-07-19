@@ -7,5 +7,6 @@ import (
 )
 
 func NewRouter(router fiber.Router, db *gorm.DB, handler SlackHandler) {
-	router.Get("/slack", middlewares.TxMiddleware(db), handler.FindChannels)
+	router.Get("/slack/channels", middlewares.TxMiddleware(db), handler.FindChannels)
+	router.Get("/slack/channels/:channelId", middlewares.TxMiddleware(db), handler.FindChannelById)
 }

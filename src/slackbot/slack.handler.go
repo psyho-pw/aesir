@@ -3,10 +3,12 @@ package slackbot
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
+	"gorm.io/gorm"
 )
 
 type SlackHandler interface {
 	FindChannels(c *fiber.Ctx) error
+	FindChannelById(c *fiber.Ctx) error
 }
 
 type slackHandler struct {
@@ -18,10 +20,23 @@ func NewSlackHandler(service SlackService) SlackHandler {
 }
 
 func (handler slackHandler) FindChannels(c *fiber.Ctx) error {
-	result, err := handler.service.GetChannels()
+	tx := c.Locals("TX").(*gorm.DB)
+	result, err := handler.service.WithTx(tx).GetChannels()
 	if err != nil {
 		return err
 	}
+	return c.Status(fiber.StatusOK).JSON(result)
+}
+
+func (handler slackHandler) FindChannelById(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
+	id := c.Params("channelId")
+	result, err := handler.service.WithTx(tx).GetChannel(id)
+
+	if err != nil {
+		return err
+	}
+
 	return c.Status(fiber.StatusOK).JSON(result)
 }
 
