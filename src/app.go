@@ -58,6 +58,8 @@ func NewApp(config *common.Config, db *gorm.DB, userHandler users.UserHandler, s
 	api := app.Group("/api")
 	v1 := api.Group("/v1")
 
+	println(":::::::::::::::::::::::::::::::::::::")
+
 	users.NewRouter(v1, db, userHandler)
 	slackbot.NewRouter(v1, db, slackHandler)
 

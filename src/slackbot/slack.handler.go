@@ -18,8 +18,11 @@ func NewSlackHandler(service SlackService) SlackHandler {
 }
 
 func (handler slackHandler) FindChannels(c *fiber.Ctx) error {
-	_ = handler.service.GetChannels()
-	return nil
+	result, err := handler.service.GetChannels()
+	if err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusOK).JSON(result)
 }
 
 var SetHandler = wire.NewSet(NewSlackHandler)

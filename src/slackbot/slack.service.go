@@ -13,7 +13,7 @@ import (
 )
 
 type SlackService interface {
-	GetChannels() error
+	GetChannels() ([]slack.Channel, error)
 }
 
 type slackService struct {
@@ -157,11 +157,13 @@ func NewSlackService(config *common.Config) SlackService {
 
 	go socketEventListener(client)
 
-	err := client.Run()
-	if err != nil {
-		logrus.Fatalf("%+v", err)
-		os.Exit(1)
-	}
+	go func() {
+		err := client.Run()
+		if err != nil {
+			logrus.Fatalf("%+v", err)
+			os.Exit(1)
+		}
+	}()
 
 	return &slackService{
 		api:    api,
@@ -172,14 +174,21 @@ func NewSlackService(config *common.Config) SlackService {
 
 var SetService = wire.NewSet(NewSlackService)
 
-func (service *slackService) GetChannels() error {
-	groups, err := service.api.GetUserGroups(slack.GetUserGroupsOptionIncludeUsers(false))
+func (service *slackService) GetChannels() ([]slack.Channel, error) {
+	channels, nextCursor, err := service.client.GetConversations(
+		&slack.GetConversationsParameters{
+			Cursor:          "asd",
+			ExcludeArchived: true,
+			Limit:           10,
+			Types:           nil,
+			TeamID:          "asd",
+		},
+	)
+	logrus.Info(nextCursor)
 	if err != nil {
 		logrus.Errorf("%s\n", err)
-		return nil
+		return nil, err
 	}
-	for _, group := range groups {
-		logrus.Debugf("ID: %s, Name: %s\n", group.ID, group.Name)
-	}
-	return nil
+
+	return channels, nil
 }
