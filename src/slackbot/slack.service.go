@@ -168,7 +168,6 @@ func NewSlackService(config *common.Config) SlackService {
 		err := client.Run()
 		if err != nil {
 			logrus.Fatalf("%+v", err)
-			os.Exit(1)
 		}
 	}()
 

@@ -9,8 +9,7 @@ import (
 func TxMiddleware(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tx := db.Begin()
-		logrus.Debugf("%+v", tx)
-		logrus.Fatalf("Transaction start")
+		logrus.Info("Transaction start")
 		defer func() {
 			if r := recover(); r != nil {
 				logrus.Errorf("%+v", r)
