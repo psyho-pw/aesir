@@ -5,6 +5,7 @@ import (
 	"aesir/src/common/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 	"strconv"
 )
@@ -29,6 +30,8 @@ var SetHandler = wire.NewSet(NewUserHandler)
 
 func (handler userHandler) CreateOne(c *fiber.Ctx) error {
 	tx := c.Locals("TX").(*gorm.DB)
+	logrus.Debugf("::::::::::::::::::::")
+	logrus.Debugf("%+v", tx)
 	user := new(User)
 	if err := c.BodyParser(user); err != nil {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
