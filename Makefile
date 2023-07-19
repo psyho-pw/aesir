@@ -50,4 +50,4 @@ analysis:
 	go build -gcflags '-m=2'
 
 run-air:
-	~/golang/bin/air -c .air.toml
+	air -c .air.toml
