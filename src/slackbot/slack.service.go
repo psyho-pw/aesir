@@ -2,7 +2,6 @@ package slackbot
 
 import (
 	"fiber/src/common"
-	"fmt"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
@@ -26,20 +25,20 @@ func socketEventListener(client *socketmode.Client) {
 	for evt := range client.Events {
 		switch evt.Type {
 		case socketmode.EventTypeConnecting:
-			fmt.Println("Connecting to Slack with Socket Mode...")
+			logrus.Debug("Connecting to Slack with Socket Mode...")
 		case socketmode.EventTypeConnectionError:
-			fmt.Println("Connection failed. Retrying later...")
+			logrus.Debug("Connection failed. Retrying later...")
 		case socketmode.EventTypeConnected:
-			fmt.Println("Connected to Slack with Socket Mode.")
+			logrus.Debug("Connected to Slack with Socket Mode.")
 		case socketmode.EventTypeEventsAPI:
 			eventsAPIEvent, ok := evt.Data.(slackevents.EventsAPIEvent)
 			if !ok {
-				fmt.Printf("Ignored %+v\n", evt)
+				logrus.Debugf("Ignored %+v\n", evt)
 
 				continue
 			}
 
-			fmt.Printf("Event received: %+v\n", eventsAPIEvent)
+			logrus.Debugf("Event received: %+v\n", eventsAPIEvent)
 
 			client.Ack(*evt.Request)
 
@@ -50,10 +49,10 @@ func socketEventListener(client *socketmode.Client) {
 				case *slackevents.AppMentionEvent:
 					_, _, err := client.PostMessage(ev.Channel, slack.MsgOptionText("Yes, hello.", false))
 					if err != nil {
-						fmt.Printf("failed posting message: %v", err)
+						logrus.Debugf("failed posting message: %v", err)
 					}
 				case *slackevents.MemberJoinedChannelEvent:
-					fmt.Printf("user %q joined to channel %q", ev.User, ev.Channel)
+					logrus.Debugf("user %q joined to channel %q", ev.User, ev.Channel)
 				}
 			default:
 				client.Debugf("unsupported Events API event received")
@@ -61,12 +60,12 @@ func socketEventListener(client *socketmode.Client) {
 		case socketmode.EventTypeInteractive:
 			callback, ok := evt.Data.(slack.InteractionCallback)
 			if !ok {
-				fmt.Printf("Ignored %+v\n", evt)
+				logrus.Debugf("Ignored %+v\n", evt)
 
 				continue
 			}
 
-			fmt.Printf("Interaction received: %+v\n", callback)
+			logrus.Debugf("Interaction received: %+v\n", callback)
 
 			var payload interface{}
 
@@ -87,7 +86,7 @@ func socketEventListener(client *socketmode.Client) {
 		case socketmode.EventTypeSlashCommand:
 			cmd, ok := evt.Data.(slack.SlashCommand)
 			if !ok {
-				fmt.Printf("Ignored %+v\n", evt)
+				logrus.Debugf("Ignored %+v\n", evt)
 
 				continue
 			}
@@ -118,7 +117,7 @@ func socketEventListener(client *socketmode.Client) {
 
 			client.Ack(*evt.Request, payload)
 		default:
-			fmt.Fprintf(os.Stderr, "Unexpected event type received: %s\n", evt.Type)
+			logrus.Debugf("Unexpected event type received: %s\n", evt.Type)
 		}
 	}
 }
@@ -145,7 +144,11 @@ func NewSlackService(config *common.Config) SlackService {
 		logrus.Error("bot token must have the prefix \"xoxb-\"")
 	}
 
-	api := slack.New(botToken)
+	api := slack.New(
+		botToken, slack.OptionDebug(true),
+		slack.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
+		slack.OptionAppLevelToken(appToken),
+	)
 	client := socketmode.New(
 		api,
 		socketmode.OptionDebug(true),
@@ -154,7 +157,11 @@ func NewSlackService(config *common.Config) SlackService {
 
 	go socketEventListener(client)
 
-	client.Run()
+	err := client.Run()
+	if err != nil {
+		logrus.Fatalf("%+v", err)
+		os.Exit(1)
+	}
 
 	return &slackService{
 		api:    api,
@@ -168,11 +175,11 @@ var SetService = wire.NewSet(NewSlackService)
 func (service *slackService) GetChannels() error {
 	groups, err := service.api.GetUserGroups(slack.GetUserGroupsOptionIncludeUsers(false))
 	if err != nil {
-		fmt.Printf("%s\n", err)
+		logrus.Errorf("%s\n", err)
 		return nil
 	}
 	for _, group := range groups {
-		fmt.Printf("ID: %s, Name: %s\n", group.ID, group.Name)
+		logrus.Debugf("ID: %s, Name: %s\n", group.ID, group.Name)
 	}
 	return nil
 }
