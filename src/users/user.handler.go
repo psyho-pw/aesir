@@ -37,6 +37,7 @@ func (handler userHandler) CreateOne(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	return c.Status(fiber.StatusCreated).JSON(result)
 }
 
@@ -45,6 +46,7 @@ func (handler userHandler) FindMany(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	return c.Status(fiber.StatusOK).JSON(result)
 }
 
@@ -58,6 +60,7 @@ func (handler userHandler) FindOne(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	return c.Status(fiber.StatusOK).JSON(result)
 }
 
@@ -76,6 +79,7 @@ func (handler userHandler) UpdateOne(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	return c.Status(fiber.StatusOK).JSON(result)
 }
 
@@ -89,5 +93,6 @@ func (handler userHandler) DeleteOne(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+
 	return c.Status(fiber.StatusOK).JSON(user)
 }

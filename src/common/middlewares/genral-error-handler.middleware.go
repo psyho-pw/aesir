@@ -19,9 +19,9 @@ var GeneralErrorHandler = func(ctx *fiber.Ctx, err error) error {
 		code = exception.Code
 	}
 
-	tx := ctx.Locals("TX").(*gorm.DB)
+	tx := ctx.Locals("TX")
 	if tx != nil {
-		tx.Rollback()
+		tx.(*gorm.DB).Rollback()
 		logrus.Error("Transaction rollback - GeneralErrorHandler")
 	}
 
