@@ -25,6 +25,7 @@ type DB struct {
 type SlackConfig struct {
 	AppToken string
 	BotToken string
+	TeamId   string
 }
 
 type Config struct {
@@ -61,6 +62,7 @@ func slackConfig() SlackConfig {
 	return SlackConfig{
 		AppToken: os.Getenv("SLACK_APP_TOKEN"),
 		BotToken: os.Getenv("SLACK_BOT_TOKEN"),
+		TeamId:   os.Getenv("TEAM_ID"),
 	}
 }
 

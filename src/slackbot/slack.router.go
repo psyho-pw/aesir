@@ -11,4 +11,5 @@ func NewRouter(router fiber.Router, db *gorm.DB, handler SlackHandler) {
 	router.Get("/teams/:teamId/channels", middlewares.TxMiddleware(db), handler.FindChannels)
 	router.Get("/teams/:teamId/channels/:channelId", middlewares.TxMiddleware(db), handler.FindChannelById)
 	router.Get("/teams/:teamId/channels/:channelId/messages/latest", middlewares.TxMiddleware(db), handler.FindLatestChannelMessage)
+	router.Get("/teams/:teamId/users", middlewares.TxMiddleware(db), handler.FindTeamUsers)
 }

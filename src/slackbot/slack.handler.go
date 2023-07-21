@@ -11,6 +11,7 @@ type SlackHandler interface {
 	FindChannels(c *fiber.Ctx) error
 	FindChannelById(c *fiber.Ctx) error
 	FindLatestChannelMessage(c *fiber.Ctx) error
+	FindTeamUsers(c *fiber.Ctx) error
 }
 
 type slackHandler struct {
@@ -57,6 +58,17 @@ func (handler slackHandler) FindLatestChannelMessage(c *fiber.Ctx) error {
 	tx := c.Locals("TX").(*gorm.DB)
 	id := c.Params("channelId")
 	result, err := handler.service.WithTx(tx).FindLatestChannelMessage(id)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(result)
+}
+
+func (handler slackHandler) FindTeamUsers(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
+	id := c.Params("teamId")
+	result, err := handler.service.WithTx(tx).FindTeamUsers(id)
 	if err != nil {
 		return err
 	}

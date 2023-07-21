@@ -9,6 +9,7 @@ type UserService interface {
 	CreateOne(*User) (*User, error)
 	FindMany() ([]User, error)
 	FindOne(id int) (*User, error)
+	FindOneBySlackId(id string) (*User, error)
 	UpdateOne(id int, user *User) (*User, error)
 	DeleteOne(id int) (*User, error)
 	WithTx(tx *gorm.DB) UserService
@@ -42,6 +43,14 @@ func (service *userService) FindMany() ([]User, error) {
 
 func (service *userService) FindOne(id int) (*User, error) {
 	result, err := service.repository.FindOne(id)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (service *userService) FindOneBySlackId(id string) (*User, error) {
+	result, err := service.repository.FindOneBySlackId(id)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ type UserRepository interface {
 	Create(user User) (*User, error)
 	Find() ([]User, error)
 	FindOne(id int) (*User, error)
+	FindOneBySlackId(id string) (*User, error)
 	UpdateOne(id int, user User) (*User, error)
 	DeleteOne(id int) (*User, error)
 	WithTx(tx *gorm.DB) UserRepository
@@ -59,6 +60,16 @@ func (repository *userRepository) FindOne(id int) (*User, error) {
 	}
 	if result.RowsAffected == 0 {
 		return nil, errors.New(fiber.StatusNotFound, "Not affected")
+	}
+
+	return &user, nil
+}
+
+func (repository *userRepository) FindOneBySlackId(id string) (*User, error) {
+	var user User
+	result := repository.DB.Find(&user, id)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
 	}
 
 	return &user, nil

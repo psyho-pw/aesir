@@ -9,6 +9,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
+	"github.com/thoas/go-funk"
 	"gorm.io/gorm"
 	"log"
 	"os"
@@ -20,6 +21,7 @@ type SlackService interface {
 	FindChannels(teamId string) ([]slack.Channel, error)
 	FindChannel(channelId string) (*slack.Channel, error)
 	FindLatestChannelMessage(channelId string) (*slack.Message, error)
+	FindTeamUsers(teamId string) ([]slack.User, error)
 	WithTx(tx *gorm.DB) SlackService
 }
 
@@ -234,6 +236,32 @@ func (service *slackService) FindLatestChannelMessage(channelId string) (*slack.
 	}
 
 	return &messages[0], nil
+}
+
+func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) {
+	users, err := service.client.GetUsers(slack.GetUsersOptionTeamID(teamId))
+	if err != nil {
+		return nil, err
+	}
+
+	pred := func(i slack.User) bool {
+		return i.IsBot == false &&
+			i.IsRestricted == false &&
+			i.IsUltraRestricted == false &&
+			i.Deleted == false
+	}
+
+	//s := gocron.NewScheduler(time.Local)
+	//
+	//// 4
+	//_, _ = s.Every(1).Seconds().Do(func() {
+	//	println("test")
+	//})
+	//
+	//// 5
+	//s.StartBlocking()
+
+	return funk.Filter(users, pred).([]slack.User), nil
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) SlackService {
