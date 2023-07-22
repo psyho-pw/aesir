@@ -41,11 +41,14 @@ func (handler slackHandler) Event(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(eventsAPIEvent.Data)
 	case slackevents.CallbackEvent:
 		innerEvent := eventsAPIEvent.InnerEvent
-		evtErr := handler.service.WithTx(tx).HandleEvent(innerEvent)
+		evtErr := handler.service.WithTx(tx).EventMux(innerEvent)
 		if evtErr != nil {
 			logrus.Errorf("%+v", evtErr)
 			return evtErr
 		}
+	case "bot_added":
+		logrus.Debug("bot added!!")
+
 	default:
 		return c.SendStatus(fiber.StatusBadRequest)
 	}

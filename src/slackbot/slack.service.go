@@ -17,7 +17,7 @@ import (
 )
 
 type SlackService interface {
-	HandleEvent(innerEvent slackevents.EventsAPIInnerEvent) error
+	EventMux(innerEvent slackevents.EventsAPIInnerEvent) error
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels(teamId string) ([]slack.Channel, error)
 	FindChannel(channelId string) (*slack.Channel, error)
@@ -66,17 +66,23 @@ func NewSlackService(config *common.Config) SlackService {
 
 var SetService = wire.NewSet(NewSlackService)
 
-func (service *slackService) HandleEvent(innerEvent slackevents.EventsAPIInnerEvent) error {
+func (service *slackService) EventMux(innerEvent slackevents.EventsAPIInnerEvent) error {
 	spew.Dump(innerEvent)
 
 	switch evt := innerEvent.Data.(type) {
 	case *slackevents.MessageEvent:
+		//TODO 메세지 이벤트 발생 시 사내 인원일 경우 timestamp 최신화
 		if evt.BotID != "" || evt.ThreadTimeStamp != "" {
 			return nil
 		}
 		_, _, err := service.api.PostMessage(evt.Channel, slack.MsgOptionText("acknowledged", false))
 		if err != nil {
 			return err
+		}
+	case *slackevents.MemberJoinedChannelEvent:
+		//TODO 봇이 채널 조인 시 채널 정보 취득하여 저장
+		if evt.User != "U05JAA0TYP2" {
+			return nil
 		}
 	default:
 		return nil
