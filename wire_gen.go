@@ -10,6 +10,7 @@ import (
 	"aesir/src"
 	"aesir/src/common"
 	"aesir/src/common/database"
+	"aesir/src/crons"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"github.com/gofiber/fiber/v2"
@@ -26,7 +27,8 @@ func New() (*fiber.App, error) {
 	userHandler := users.NewUserHandler(userService)
 	slackService := slackbot.NewSlackService(config)
 	slackHandler := slackbot.NewSlackHandler(slackService)
-	app := src.NewApp(config, db, userHandler, slackHandler)
+	cronService := crons.NewCronService(config, slackService, userService)
+	app := src.NewApp(config, db, userHandler, slackHandler, cronService)
 	return app, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"aesir/src/common"
 	"aesir/src/common/database"
 	"aesir/src/common/middlewares"
+	"aesir/src/crons"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"github.com/gofiber/fiber/v2"
@@ -25,13 +26,16 @@ var AppSet = wire.NewSet(
 	users.SetHandler,
 	slackbot.SetService,
 	slackbot.SetHandler,
+	crons.SetService,
 	NewApp,
 )
 
 func NewApp(
 	config *common.Config,
-	db *gorm.DB, userHandler users.UserHandler,
+	db *gorm.DB,
+	userHandler users.UserHandler,
 	slackHandler slackbot.SlackHandler,
+	cronService crons.CronService,
 ) *fiber.App {
 	app := fiber.New(config.Fiber)
 
@@ -65,6 +69,8 @@ func NewApp(
 	// router setting
 	users.NewRouter(v1.Group("/users"), db, userHandler)
 	slackbot.NewRouter(v1.Group("/slack"), db, slackHandler)
+
+	//cronService.Start()
 
 	return app
 }
