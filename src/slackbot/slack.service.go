@@ -26,8 +26,7 @@ type SlackService interface {
 }
 
 type slackService struct {
-	api    *slack.Client
-	client *socketmode.Client
+	api *slack.Client
 }
 
 func socketEventListener(client *socketmode.Client) {
@@ -158,24 +157,23 @@ func NewSlackService(config *common.Config) SlackService {
 		slack.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
 		slack.OptionAppLevelToken(appToken),
 	)
-	client := socketmode.New(
-		api,
-		socketmode.OptionDebug(true),
-		socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
-	)
-
-	go socketEventListener(client)
-
-	go func() {
-		err := client.Run()
-		if err != nil {
-			logrus.Fatalf("%+v", err)
-		}
-	}()
+	//client := socketmode.New(
+	//	api,
+	//	socketmode.OptionDebug(true),
+	//	socketmode.OptionLog(log.New(os.Stdout, "socketmode: ", log.Lshortfile|log.LstdFlags)),
+	//)
+	//
+	//go socketEventListener(client)
+	//
+	//go func() {
+	//	err := client.Run()
+	//	if err != nil {
+	//		logrus.Fatalf("%+v", err)
+	//	}
+	//}()
 
 	return &slackService{
-		api:    api,
-		client: client,
+		api: api,
 	}
 
 }
@@ -183,7 +181,7 @@ func NewSlackService(config *common.Config) SlackService {
 var SetService = wire.NewSet(NewSlackService)
 
 func (service *slackService) FindTeam() (*slack.TeamInfo, error) {
-	team, err := service.client.GetTeamInfo()
+	team, err := service.api.GetTeamInfo()
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +190,7 @@ func (service *slackService) FindTeam() (*slack.TeamInfo, error) {
 }
 
 func (service *slackService) FindChannels(teamId string) ([]slack.Channel, error) {
-	channels, _, err := service.client.GetConversations(
+	channels, _, err := service.api.GetConversations(
 		&slack.GetConversationsParameters{
 			ExcludeArchived: true,
 			Limit:           1000,
@@ -209,7 +207,7 @@ func (service *slackService) FindChannels(teamId string) ([]slack.Channel, error
 }
 
 func (service *slackService) FindChannel(channelId string) (*slack.Channel, error) {
-	channel, err := service.client.GetConversationInfo(&slack.GetConversationInfoInput{
+	channel, err := service.api.GetConversationInfo(&slack.GetConversationInfoInput{
 		ChannelID: channelId,
 	})
 	if err != nil {
@@ -220,7 +218,7 @@ func (service *slackService) FindChannel(channelId string) (*slack.Channel, erro
 }
 
 func (service *slackService) FindLatestChannelMessage(channelId string) (*slack.Message, error) {
-	getConversationHistoryResponse, err := service.client.GetConversationHistory(
+	getConversationHistoryResponse, err := service.api.GetConversationHistory(
 		&slack.GetConversationHistoryParameters{
 			ChannelID: channelId,
 			Limit:     1,
@@ -239,7 +237,7 @@ func (service *slackService) FindLatestChannelMessage(channelId string) (*slack.
 }
 
 func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) {
-	users, err := service.client.GetUsers(slack.GetUsersOptionTeamID(teamId))
+	users, err := service.api.GetUsers(slack.GetUsersOptionTeamID(teamId))
 	if err != nil {
 		return nil, err
 	}

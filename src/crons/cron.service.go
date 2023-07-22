@@ -1,14 +1,16 @@
-package cron
+package crons
 
 import (
 	"aesir/src/common"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"github.com/google/wire"
+	"github.com/sirupsen/logrus"
 	"sync"
 )
 
 var svcOnce sync.Once
+var svc *cronService
 
 type CronService interface {
 	Start() error
@@ -21,11 +23,15 @@ type cronService struct {
 }
 
 func NewCronService(config *common.Config, slackService slackbot.SlackService, userService users.UserService) CronService {
-	return &cronService{
-		config:       config,
-		slackService: slackService,
-		userService:  userService,
-	}
+	svcOnce.Do(func() {
+		svc = &cronService{
+			config:       config,
+			slackService: slackService,
+			userService:  userService,
+		}
+	})
+
+	return svc
 }
 
 var SetService = wire.NewSet(NewCronService)
@@ -36,17 +42,28 @@ func (service *cronService) Start() error {
 		return err
 	}
 
+	println(len(teamUsers))
+
 	for _, user := range teamUsers {
-		user, err := service.userService.FindOneBySlackId(user.ID)
+		usr, err := service.userService.FindOneBySlackId(user.ID)
+
+		logrus.Infof("%+v", user)
+		logrus.Debugf("%+v", usr)
 		if err != nil {
+			logrus.Errorf("%+v", err)
 			return err
 		}
 
-		if user == nil {
+		if usr.ID == 0 {
 			newUser := new(users.User)
-			newUser.Email = user.Email
+			newUser.SlackId = user.ID
+			newUser.Alias = user.Name
+			newUser.Name = user.RealName
+			newUser.Email = user.Profile.Email
+			newUser.Phone = user.Profile.Phone
 			_, err := service.userService.CreateOne(newUser)
 			if err != nil {
+				logrus.Errorf("%+v", err)
 				return err
 			}
 		}
