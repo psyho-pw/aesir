@@ -72,5 +72,9 @@ func NewApp(
 
 	//cronService.Start()
 
+	app.Use(func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusNotFound)
+	})
+
 	return app
 }
