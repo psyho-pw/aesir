@@ -54,7 +54,7 @@ func NewApp(
 	}))
 	app.Use(middlewares.LogMiddleware)
 
-	app.Static("/static", "./public", fiber.Static{
+	app.Static("/", "./public", fiber.Static{
 		Compress:      true,
 		ByteRange:     true,
 		Browse:        true,
