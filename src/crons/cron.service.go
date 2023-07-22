@@ -68,5 +68,15 @@ func (service *cronService) Start() error {
 			}
 		}
 	}
+
+	//s := gocron.NewScheduler(time.Local)
+	//
+	//// 4
+	//_, _ = s.Every(1).Seconds().Do(func() {
+	//	println("test")
+	//})
+	//
+	//// 5
+	//s.StartBlocking()
 	return nil
 }

@@ -1,11 +1,11 @@
 package slackbot
 
 import (
-	"aesir/src/slackbot/dto"
+	"encoding/json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
-	"github.com/slack-go/slack"
+	"github.com/slack-go/slack/slackevents"
 	"gorm.io/gorm"
 )
 
@@ -27,28 +27,30 @@ func NewSlackHandler(service SlackService) SlackHandler {
 }
 
 func (handler slackHandler) Event(c *fiber.Ctx) error {
-	payload := new(slack.Event)
-	if err := c.BodyParser(payload); err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-	}
+	tx := c.Locals("TX").(*gorm.DB)
 
-	if payload.Type == "url_verification" {
-		challenge := new(dto.Event)
-		if err := c.BodyParser(challenge); err != nil {
-			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	eventsAPIEvent, parseEvtErr := slackevents.ParseEvent(json.RawMessage(c.Body()), slackevents.OptionNoVerifyToken())
+	if parseEvtErr != nil {
+		logrus.Errorf("%+v", parseEvtErr)
+		return c.Status(fiber.StatusInternalServerError).SendString(parseEvtErr.Error())
+	}
+	logrus.Infof("%s event triggered", eventsAPIEvent.Type)
+
+	switch eventsAPIEvent.Type {
+	case slackevents.URLVerification:
+		return c.Status(fiber.StatusOK).JSON(eventsAPIEvent.Data)
+	case slackevents.CallbackEvent:
+		innerEvent := eventsAPIEvent.InnerEvent
+		evtErr := handler.service.WithTx(tx).HandleEvent(innerEvent)
+		if evtErr != nil {
+			logrus.Errorf("%+v", evtErr)
+			return evtErr
 		}
-		return c.Status(fiber.StatusOK).JSON(challenge)
+	default:
+		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	eventType := slack.EventMapping[payload.Type]
-	if err := c.BodyParser(eventType); err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
-	}
-
-	logrus.Debugf("%+v", payload)
-	logrus.Debugf("%+v", eventType)
-
-	return c.Status(fiber.StatusOK).JSON(payload)
+	return nil
 }
 
 func (handler slackHandler) FindTeam(c *fiber.Ctx) error {
