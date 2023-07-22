@@ -1,4 +1,4 @@
-# Aesir - inactivity monitoring slackbot
+# Aesir - inactivity monitor slackbot
 
 ## Development
 ### Start application
@@ -10,7 +10,8 @@
 ### Require [Google Wire](https://github.com/google/wire) for DI
 ```bash
     # go install github.com/google/wire/cmd/wire@latest
-    cd src/ && wire
+    # run following command from project root
+    wire .
 ```
 ### Commands
 ```bash
