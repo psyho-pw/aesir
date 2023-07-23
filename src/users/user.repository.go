@@ -9,6 +9,7 @@ import (
 
 type Repository interface {
 	Create(user User) (*User, error)
+	CreateMany(users []User) ([]User, error)
 	Find() ([]User, error)
 	FindOne(id int) (*User, error)
 	FindOneBySlackId(id string) (*User, error)
@@ -40,6 +41,18 @@ func (repository *userRepository) Create(user User) (*User, error) {
 	//}
 
 	return &user, nil
+}
+
+func (repository *userRepository) CreateMany(users []User) ([]User, error) {
+	result := repository.DB.Create(&users)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected != int64(len(users)) {
+		return nil, errors.New(fiber.StatusInternalServerError, "affected row count doesn't match")
+	}
+
+	return users, nil
 }
 
 func (repository *userRepository) Find() ([]User, error) {

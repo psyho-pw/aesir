@@ -17,6 +17,8 @@ func TxMiddleware(db *gorm.DB) fiber.Handler {
 				logrus.Error("Transaction rollback")
 				_ = c.Status(fiber.StatusInternalServerError).SendString("internal server error")
 			}
+
+			tx.Commit()
 			logrus.Debug("Transaction end")
 		}()
 		c.Locals("TX", tx)

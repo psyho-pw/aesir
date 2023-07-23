@@ -79,8 +79,7 @@ func (handler slackHandler) FindTeam(c *fiber.Ctx) error {
 
 func (handler slackHandler) FindChannels(c *fiber.Ctx) error {
 	tx := c.Locals("TX").(*gorm.DB)
-	id := c.Params("teamId")
-	result, err := handler.service.WithTx(tx).FindChannels(id)
+	result, err := handler.service.WithTx(tx).FindChannels()
 	if err != nil {
 		return err
 	}

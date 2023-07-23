@@ -3,11 +3,9 @@ package cron
 import (
 	"aesir/src/channels"
 	"aesir/src/common"
-	"aesir/src/common/errors"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"github.com/go-co-op/gocron"
-	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -64,6 +62,8 @@ func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func(
 				tx.Rollback()
 				logrus.Error("Transaction rollback")
 			}
+
+			tx.Commit()
 			logrus.Debug("Transaction end")
 		}()
 
@@ -81,15 +81,11 @@ func (service *cronService) userTask(tx *gorm.DB) error {
 		return findUsersErr
 	}
 
-	logrus.Info(len(teamUsers))
-
-	for index, user := range teamUsers {
+	logrus.Debugf("found %d users", len(teamUsers))
+	var toCreate []users.User
+	for _, user := range teamUsers {
 		usr, findUserErr := service.userService.WithTx(tx).FindOneBySlackId(user.ID)
-
-		logrus.Infof("%+v", user)
-		logrus.Debugf("%+v", usr)
 		if findUserErr != nil {
-			logrus.Errorf("%+v", findUserErr)
 			return findUserErr
 		}
 
@@ -100,31 +96,72 @@ func (service *cronService) userTask(tx *gorm.DB) error {
 			newUser.Name = user.RealName
 			newUser.Email = user.Profile.Email
 			newUser.Phone = user.Profile.Phone
-			_, err := service.userService.WithTx(tx).CreateOne(newUser)
-			if err != nil {
-				logrus.Errorf("%+v", err)
-				return err
-			}
-		}
 
-		if index == 12 {
-			return errors.New(fiber.StatusBadGateway, "test")
+			toCreate = append(toCreate, *newUser)
+			logrus.Debugf("%+v", newUser)
 		}
 	}
+
+	if len(toCreate) == 0 {
+		logrus.Debug("user target not found")
+		return nil
+	}
+
+	_, insertErr := service.userService.WithTx(tx).CreateMany(toCreate)
+	if insertErr != nil {
+		return insertErr
+	}
+
 	return nil
 }
 
 func (service *cronService) channelTask(tx *gorm.DB) error {
 	logrus.Infof("running channelTask")
+	joinedChannels, err := service.slackService.WithTx(tx).FindJoinedChannels()
+	if err != nil {
+		return err
+	}
+
+	logrus.Debugf("found %d channels", len(joinedChannels))
+	var toCreate []channels.Channel
+	for _, channel := range joinedChannels {
+		ch, findChannelErr := service.channelService.WithTx(tx).FindOneBySlackId(channel.ID)
+		if findChannelErr != nil {
+			return findChannelErr
+		}
+
+		if ch == nil {
+			newChannel := new(channels.Channel)
+			newChannel.SlackId = channel.ID
+			newChannel.Name = channel.Name
+			newChannel.Creator = channel.Creator
+			newChannel.IsPrivate = channel.IsPrivate
+			newChannel.IsArchived = channel.IsArchived
+
+			toCreate = append(toCreate, *newChannel)
+			logrus.Debugf("%+v", newChannel)
+		}
+	}
+
+	if len(toCreate) == 0 {
+		logrus.Debug("channel target not found")
+		return nil
+	}
+
+	_, insertErr := service.channelService.WithTx(tx).CreateMany(toCreate)
+	if insertErr != nil {
+		return insertErr
+	}
+
 	return nil
 }
 
 func (service *cronService) Start() error {
 	scheduler := gocron.NewScheduler(time.Local)
-	_, _ = scheduler.Every(1).Minute().Do(service.transactionWrapper(service.userTask))
-	_, _ = scheduler.Every(1).Minute().Do(service.transactionWrapper(service.channelTask))
-
-	scheduler.StartBlocking()
+	//_, _ = scheduler.CronWithSeconds("0 * * * * *").Do(service.transactionWrapper(service.userTask))
+	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.userTask))
+	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.channelTask))
+	scheduler.StartAsync()
 
 	return nil
 }
