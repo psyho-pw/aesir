@@ -10,7 +10,8 @@ import (
 )
 
 type SlackHandler interface {
-	Event(c *fiber.Ctx) error
+	EventMux(c *fiber.Ctx) error
+	WhoAmI(c *fiber.Ctx) error
 	FindTeam(c *fiber.Ctx) error
 	FindChannels(c *fiber.Ctx) error
 	FindChannelById(c *fiber.Ctx) error
@@ -26,7 +27,7 @@ func NewSlackHandler(service SlackService) SlackHandler {
 	return &slackHandler{service: service}
 }
 
-func (handler slackHandler) Event(c *fiber.Ctx) error {
+func (handler slackHandler) EventMux(c *fiber.Ctx) error {
 	tx := c.Locals("TX").(*gorm.DB)
 
 	eventsAPIEvent, parseEvtErr := slackevents.ParseEvent(json.RawMessage(c.Body()), slackevents.OptionNoVerifyToken())
@@ -54,6 +55,16 @@ func (handler slackHandler) Event(c *fiber.Ctx) error {
 	}
 
 	return nil
+}
+
+func (handler slackHandler) WhoAmI(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
+	result, err := handler.service.WithTx(tx).WhoAmI()
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(result)
 }
 
 func (handler slackHandler) FindTeam(c *fiber.Ctx) error {

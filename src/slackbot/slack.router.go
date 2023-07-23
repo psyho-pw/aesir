@@ -7,7 +7,8 @@ import (
 )
 
 func NewRouter(router fiber.Router, db *gorm.DB, handler SlackHandler) {
-	router.Post("/events", middlewares.TxMiddleware(db), handler.Event)
+	router.Post("/events", middlewares.TxMiddleware(db), handler.EventMux)
+	router.Get("/whoami", middlewares.TxMiddleware(db), handler.WhoAmI)
 	router.Get("/teams", middlewares.TxMiddleware(db), handler.FindTeam)
 	router.Get("/teams/:teamId/channels", middlewares.TxMiddleware(db), handler.FindChannels)
 	router.Get("/teams/:teamId/channels/:channelId", middlewares.TxMiddleware(db), handler.FindChannelById)

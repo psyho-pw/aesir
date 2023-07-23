@@ -25,7 +25,7 @@ var GeneralErrorHandler = func(ctx *fiber.Ctx, err error) error {
 		logrus.Error("Transaction rollback - GeneralErrorHandler")
 	}
 
-	logrus.Errorf("%+v", exception)
+	logrus.Errorf("exception: %+v", exception)
 	logrus.SetOutput(colorable.NewColorableStdout())
 
 	return ctx.Status(code).JSON(exception)
