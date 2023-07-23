@@ -151,13 +151,11 @@ func (service *slackService) FindJoinedChannels() ([]slack.Channel, error) {
 		return nil, err
 	}
 
-	pred := func(i slack.Channel) bool {
+	predicate := func(i slack.Channel) bool {
 		return i.IsChannel == true && i.IsMember == true
 	}
 
-	return funk.Filter(channels, pred).([]slack.Channel), nil
-
-	return channels, nil
+	return funk.Filter(channels, predicate).([]slack.Channel), nil
 }
 
 func (service *slackService) FindChannel(channelId string) (*slack.Channel, error) {
@@ -191,7 +189,7 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 		return nil, err
 	}
 
-	pred := func(i slack.User) bool {
+	predicate := func(i slack.User) bool {
 		return i.IsBot == false &&
 			i.IsRestricted == false &&
 			i.IsUltraRestricted == false &&
@@ -199,7 +197,7 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 			i.ID != "USLACKBOT"
 	}
 
-	return funk.Filter(users, pred).([]slack.User), nil
+	return funk.Filter(users, predicate).([]slack.User), nil
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) Service {
