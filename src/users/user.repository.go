@@ -22,7 +22,7 @@ type userRepository struct {
 }
 
 func NewUserRepository(db *gorm.DB) UserRepository {
-	return &userRepository{DB: db}
+	return &userRepository{db}
 }
 
 var SetRepository = wire.NewSet(NewUserRepository)

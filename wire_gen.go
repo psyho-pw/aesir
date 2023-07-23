@@ -8,6 +8,7 @@ package main
 
 import (
 	"aesir/src"
+	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/database"
 	"aesir/src/crons"
@@ -25,10 +26,13 @@ func New() (*fiber.App, error) {
 	userRepository := users.NewUserRepository(db)
 	userService := users.NewUserService(userRepository)
 	userHandler := users.NewUserHandler(userService)
+	channelRepository := channels.NewChannelRepository(db)
+	channelService := channels.NewChannelService(channelRepository)
+	channelHandler := channels.NewChannelHandler(channelService)
 	slackService := slackbot.NewSlackService(config)
 	slackHandler := slackbot.NewSlackHandler(slackService)
 	cronService := crons.NewCronService(config, slackService, userService)
-	app := src.NewApp(config, db, userHandler, slackHandler, cronService)
+	app := src.NewApp(config, db, userHandler, channelHandler, slackHandler, cronService)
 	return app, nil
 }
 

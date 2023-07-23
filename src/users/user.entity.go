@@ -6,7 +6,7 @@ import (
 
 type User struct {
 	gorm.Model
-	SlackId string `json:"slackId"`
+	SlackId string `gorm:"uniqueIndex" json:"slackId"`
 	Alias   string `json:"alias"`
 	Name    string `json:"name"`
 	Email   string `json:"email"`
