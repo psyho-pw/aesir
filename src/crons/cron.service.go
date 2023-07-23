@@ -1,12 +1,15 @@
 package crons
 
 import (
+	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/slackbot"
 	"aesir/src/users"
+	"github.com/go-co-op/gocron"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
 	"sync"
+	"time"
 )
 
 var svcOnce sync.Once
@@ -17,18 +20,20 @@ type CronService interface {
 }
 
 type cronService struct {
-	config       *common.Config
-	slackService slackbot.SlackService
-	userService  users.UserService
+	config         *common.Config
+	slackService   slackbot.SlackService
+	userService    users.UserService
+	channelService channels.ChannelService
 }
 
-func NewCronService(config *common.Config, slackService slackbot.SlackService, userService users.UserService) CronService {
+func NewCronService(
+	config *common.Config,
+	slackService slackbot.SlackService,
+	userService users.UserService,
+	channelService channels.ChannelService,
+) CronService {
 	svcOnce.Do(func() {
-		svc = &cronService{
-			config:       config,
-			slackService: slackService,
-			userService:  userService,
-		}
+		svc = &cronService{config, slackService, userService, channelService}
 	})
 
 	return svc
@@ -36,7 +41,11 @@ func NewCronService(config *common.Config, slackService slackbot.SlackService, u
 
 var SetService = wire.NewSet(NewCronService)
 
-func (service *cronService) Start() error {
+func (service *cronService) channelTask() error {
+	return nil
+}
+
+func (service *cronService) userTask() error {
 	teamUsers, err := service.slackService.FindTeamUsers(service.config.Slack.TeamId)
 	if err != nil {
 		return err
@@ -68,15 +77,13 @@ func (service *cronService) Start() error {
 			}
 		}
 	}
-
-	//s := gocron.NewScheduler(time.Local)
-	//
-	//// 4
-	//_, _ = s.Every(1).Seconds().Do(func() {
-	//	println("test")
-	//})
-	//
-	//// 5
-	//s.StartBlocking()
 	return nil
+}
+
+func (service *cronService) Start() {
+	scheduler := gocron.NewScheduler(time.Local)
+	_, _ = scheduler.Every(1).Minute().Do(service.userTask())
+	_, _ = scheduler.Every(1).Minute().Do(service.channelTask())
+
+	scheduler.StartBlocking()
 }
