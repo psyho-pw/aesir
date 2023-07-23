@@ -5,7 +5,7 @@ import (
 	"aesir/src/common"
 	"aesir/src/common/database"
 	"aesir/src/common/middlewares"
-	"aesir/src/crons"
+	"aesir/src/cron"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"github.com/gofiber/fiber/v2"
@@ -30,17 +30,17 @@ var AppSet = wire.NewSet(
 	channels.SetHandler,
 	slackbot.SetService,
 	slackbot.SetHandler,
-	crons.SetService,
+	cron.SetService,
 	NewApp,
 )
 
 func NewApp(
 	config *common.Config,
 	db *gorm.DB,
-	userHandler users.UserHandler,
-	channelHandler channels.ChannelHandler,
-	slackHandler slackbot.SlackHandler,
-	cronService crons.CronService,
+	userHandler users.Handler,
+	channelHandler channels.Handler,
+	slackHandler slackbot.Handler,
+	cronService cron.Service,
 ) *fiber.App {
 	app := fiber.New(config.Fiber)
 
@@ -76,7 +76,10 @@ func NewApp(
 	channels.NewRouter(v1.Group("/channels"), db, channelHandler)
 	slackbot.NewRouter(v1.Group("/slack"), db, slackHandler)
 
-	//cronService.Start()
+	err := cronService.Start()
+	if err != nil {
+		panic(err)
+	}
 
 	app.Use(func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusNotFound)

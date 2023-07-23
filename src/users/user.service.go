@@ -5,75 +5,57 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserService interface {
+type Service interface {
 	CreateOne(*User) (*User, error)
+	CreateMany([]User) ([]User, error)
 	FindMany() ([]User, error)
 	FindOne(id int) (*User, error)
 	FindOneBySlackId(id string) (*User, error)
 	UpdateOne(id int, user *User) (*User, error)
 	DeleteOne(id int) (*User, error)
-	WithTx(tx *gorm.DB) UserService
+	WithTx(tx *gorm.DB) Service
 }
 
 type userService struct {
-	repository UserRepository
+	repository Repository
 }
 
-func NewUserService(userRepository UserRepository) UserService {
+func NewUserService(userRepository Repository) Service {
 	return &userService{repository: userRepository}
 }
 
 var SetService = wire.NewSet(NewUserService)
 
 func (service *userService) CreateOne(user *User) (*User, error) {
-	result, err := service.repository.Create(*user)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return service.repository.Create(*user)
+
+}
+
+func (service *userService) CreateMany(users []User) ([]User, error) {
+	return service.repository.CreateMany(users)
 }
 
 func (service *userService) FindMany() ([]User, error) {
-	users, err := service.repository.Find()
-	if err != nil {
-		return nil, err
-	}
-	return users, nil
+	return service.repository.Find()
 }
 
 func (service *userService) FindOne(id int) (*User, error) {
-	result, err := service.repository.FindOne(id)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return service.repository.FindOne(id)
 }
 
 func (service *userService) FindOneBySlackId(id string) (*User, error) {
-	result, err := service.repository.FindOneBySlackId(id)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
+	return service.repository.FindOneBySlackId(id)
 }
 
 func (service *userService) UpdateOne(id int, user *User) (*User, error) {
-	result, err := service.repository.UpdateOne(id, *user)
-	if err != nil {
-		return nil, err
-	}
-	return result, err
+	return service.repository.UpdateOne(id, *user)
 }
 
 func (service *userService) DeleteOne(id int) (*User, error) {
-	user, err := service.repository.DeleteOne(id)
-	if err != nil {
-		return nil, err
-	}
-	return user, nil
+	return service.repository.DeleteOne(id)
 }
 
-func (service *userService) WithTx(tx *gorm.DB) UserService {
+func (service *userService) WithTx(tx *gorm.DB) Service {
 	service.repository = service.repository.WithTx(tx)
 	return service
 }

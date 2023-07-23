@@ -14,6 +14,7 @@ var GeneralErrorHandler = func(ctx *fiber.Ctx, err error) error {
 	logrus.SetOutput(os.Stderr)
 	code := fiber.StatusInternalServerError
 
+	//TODO error reporting
 	var exception *Errors.Error
 	if errors.As(err, &exception) {
 		code = exception.Code

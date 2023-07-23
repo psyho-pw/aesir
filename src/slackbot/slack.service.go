@@ -6,7 +6,6 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
-	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/thoas/go-funk"
@@ -15,22 +14,23 @@ import (
 	"os"
 )
 
-type SlackService interface {
+type Service interface {
 	EventMux(innerEvent slackevents.EventsAPIInnerEvent) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
-	FindChannels(teamId string) ([]slack.Channel, error)
+	FindChannels() ([]slack.Channel, error)
+	FindJoinedChannels() ([]slack.Channel, error)
 	FindChannel(channelId string) (*slack.Channel, error)
 	FindLatestChannelMessage(channelId string) (*slack.Message, error)
 	FindTeamUsers(teamId string) ([]slack.User, error)
-	WithTx(tx *gorm.DB) SlackService
+	WithTx(tx *gorm.DB) Service
 }
 
 type slackService struct {
 	api *slack.Client
 }
 
-func NewSlackService(config *common.Config) SlackService {
+func NewSlackService(config *common.Config) Service {
 	api := slack.New(
 		config.Slack.BotToken,
 		slack.OptionDebug(true),
@@ -109,40 +109,61 @@ func (service *slackService) WhoAmI() (*WhoAmI, error) {
 }
 
 func (service *slackService) FindTeam() (*slack.TeamInfo, error) {
-	team, err := service.api.GetTeamInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	return team, nil
+	return service.api.GetTeamInfo()
 }
 
-func (service *slackService) FindChannels(teamId string) ([]slack.Channel, error) {
+func (service *slackService) FindChannels() ([]slack.Channel, error) {
+	whoAmI, authErr := service.WhoAmI()
+	if authErr != nil {
+		return nil, authErr
+	}
+
 	channels, _, err := service.api.GetConversations(
 		&slack.GetConversationsParameters{
 			ExcludeArchived: true,
 			Limit:           1000,
 			Types:           []string{"public_channel", "private_channel"},
-			TeamID:          teamId,
+			TeamID:          whoAmI.TeamID,
 		},
 	)
 	if err != nil {
-		logrus.Errorf("%+v", err)
 		return nil, err
 	}
 
 	return channels, nil
 }
 
-func (service *slackService) FindChannel(channelId string) (*slack.Channel, error) {
-	channel, err := service.api.GetConversationInfo(&slack.GetConversationInfoInput{
-		ChannelID: channelId,
-	})
+func (service *slackService) FindJoinedChannels() ([]slack.Channel, error) {
+	whoAmI, authErr := service.WhoAmI()
+	if authErr != nil {
+		return nil, authErr
+	}
+
+	channels, _, err := service.api.GetConversations(
+		&slack.GetConversationsParameters{
+			ExcludeArchived: true,
+			Limit:           1000,
+			Types:           []string{"public_channel", "private_channel"},
+			TeamID:          whoAmI.TeamID,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	return channel, nil
+	pred := func(i slack.Channel) bool {
+		return i.IsChannel == true && i.IsMember == true
+	}
+
+	return funk.Filter(channels, pred).([]slack.Channel), nil
+
+	return channels, nil
+}
+
+func (service *slackService) FindChannel(channelId string) (*slack.Channel, error) {
+	return service.api.GetConversationInfo(&slack.GetConversationInfoInput{
+		ChannelID: channelId,
+	})
 }
 
 func (service *slackService) FindLatestChannelMessage(channelId string) (*slack.Message, error) {
@@ -174,12 +195,13 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 		return i.IsBot == false &&
 			i.IsRestricted == false &&
 			i.IsUltraRestricted == false &&
-			i.Deleted == false
+			i.Deleted == false &&
+			i.ID != "USLACKBOT"
 	}
 
 	return funk.Filter(users, pred).([]slack.User), nil
 }
 
-func (service *slackService) WithTx(tx *gorm.DB) SlackService {
+func (service *slackService) WithTx(tx *gorm.DB) Service {
 	return service
 }

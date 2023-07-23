@@ -7,21 +7,22 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserRepository interface {
+type Repository interface {
 	Create(user User) (*User, error)
+	CreateMany(users []User) ([]User, error)
 	Find() ([]User, error)
 	FindOne(id int) (*User, error)
 	FindOneBySlackId(id string) (*User, error)
 	UpdateOne(id int, user User) (*User, error)
 	DeleteOne(id int) (*User, error)
-	WithTx(tx *gorm.DB) UserRepository
+	WithTx(tx *gorm.DB) Repository
 }
 
 type userRepository struct {
 	DB *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) UserRepository {
+func NewUserRepository(db *gorm.DB) Repository {
 	return &userRepository{db}
 }
 
@@ -40,6 +41,18 @@ func (repository *userRepository) Create(user User) (*User, error) {
 	//}
 
 	return &user, nil
+}
+
+func (repository *userRepository) CreateMany(users []User) ([]User, error) {
+	result := repository.DB.Create(&users)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected != int64(len(users)) {
+		return nil, errors.New(fiber.StatusInternalServerError, "affected row count doesn't match")
+	}
+
+	return users, nil
 }
 
 func (repository *userRepository) Find() ([]User, error) {
@@ -70,6 +83,9 @@ func (repository *userRepository) FindOneBySlackId(id string) (*User, error) {
 	if result.Error != nil {
 		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
 	}
+	if result.RowsAffected == 0 {
+		return nil, nil
+	}
 
 	return &user, nil
 }
@@ -97,7 +113,7 @@ func (repository *userRepository) DeleteOne(id int) (*User, error) {
 	return &user, nil
 }
 
-func (repository *userRepository) WithTx(tx *gorm.DB) UserRepository {
+func (repository *userRepository) WithTx(tx *gorm.DB) Repository {
 	repository.DB = tx
 	return repository
 }

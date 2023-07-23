@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewRouter(router fiber.Router, db *gorm.DB, handler SlackHandler) {
+func NewRouter(router fiber.Router, db *gorm.DB, handler Handler) {
 	router.Post("/events", middlewares.TxMiddleware(db), handler.EventMux)
 	router.Get("/whoami", middlewares.TxMiddleware(db), handler.WhoAmI)
 	router.Get("/teams", middlewares.TxMiddleware(db), handler.FindTeam)

@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewRouter(router fiber.Router, db *gorm.DB, handler UserHandler) {
+func NewRouter(router fiber.Router, db *gorm.DB, handler Handler) {
 	router.Get("", middlewares.TxMiddleware(db), handler.FindMany)
 	router.Get("/:id", middlewares.TxMiddleware(db), handler.FindOne)
 }
