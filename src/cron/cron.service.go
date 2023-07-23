@@ -88,18 +88,19 @@ func (service *cronService) userTask(tx *gorm.DB) error {
 		if findUserErr != nil {
 			return findUserErr
 		}
-
-		if usr == nil {
-			newUser := new(users.User)
-			newUser.SlackId = user.ID
-			newUser.Alias = user.Name
-			newUser.Name = user.RealName
-			newUser.Email = user.Profile.Email
-			newUser.Phone = user.Profile.Phone
-
-			toCreate = append(toCreate, *newUser)
-			logrus.Debugf("%+v", newUser)
+		if usr != nil {
+			continue
 		}
+
+		newUser := new(users.User)
+		newUser.SlackId = user.ID
+		newUser.Alias = user.Name
+		newUser.Name = user.RealName
+		newUser.Email = user.Profile.Email
+		newUser.Phone = user.Profile.Phone
+
+		toCreate = append(toCreate, *newUser)
+		logrus.Debugf("%+v", newUser)
 	}
 
 	if len(toCreate) == 0 {
@@ -129,18 +130,19 @@ func (service *cronService) channelTask(tx *gorm.DB) error {
 		if findChannelErr != nil {
 			return findChannelErr
 		}
-
-		if ch == nil {
-			newChannel := new(channels.Channel)
-			newChannel.SlackId = channel.ID
-			newChannel.Name = channel.Name
-			newChannel.Creator = channel.Creator
-			newChannel.IsPrivate = channel.IsPrivate
-			newChannel.IsArchived = channel.IsArchived
-
-			toCreate = append(toCreate, *newChannel)
-			logrus.Debugf("%+v", newChannel)
+		if ch != nil {
+			continue
 		}
+
+		newChannel := new(channels.Channel)
+		newChannel.SlackId = channel.ID
+		newChannel.Name = channel.Name
+		newChannel.Creator = channel.Creator
+		newChannel.IsPrivate = channel.IsPrivate
+		newChannel.IsArchived = channel.IsArchived
+
+		toCreate = append(toCreate, *newChannel)
+		logrus.Debugf("%+v", newChannel)
 	}
 
 	if len(toCreate) == 0 {
