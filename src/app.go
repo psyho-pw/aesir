@@ -1,6 +1,7 @@
 package src
 
 import (
+	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/database"
 	"aesir/src/common/middlewares"
@@ -24,6 +25,9 @@ var AppSet = wire.NewSet(
 	users.SetRepository,
 	users.SetService,
 	users.SetHandler,
+	channels.SetRepository,
+	channels.SetService,
+	channels.SetHandler,
 	slackbot.SetService,
 	slackbot.SetHandler,
 	crons.SetService,
@@ -34,6 +38,7 @@ func NewApp(
 	config *common.Config,
 	db *gorm.DB,
 	userHandler users.UserHandler,
+	channelHandler channels.ChannelHandler,
 	slackHandler slackbot.SlackHandler,
 	cronService crons.CronService,
 ) *fiber.App {
@@ -68,6 +73,7 @@ func NewApp(
 
 	// router setting
 	users.NewRouter(v1.Group("/users"), db, userHandler)
+	channels.NewRouter(v1.Group("/channels"), db, channelHandler)
 	slackbot.NewRouter(v1.Group("/slack"), db, slackHandler)
 
 	//cronService.Start()
