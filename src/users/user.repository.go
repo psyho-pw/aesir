@@ -70,6 +70,9 @@ func (repository *userRepository) FindOneBySlackId(id string) (*User, error) {
 	if result.Error != nil {
 		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
 	}
+	if result.RowsAffected == 0 {
+		return nil, nil
+	}
 
 	return &user, nil
 }

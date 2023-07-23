@@ -42,28 +42,30 @@ func NewCronService(
 var SetService = wire.NewSet(NewCronService)
 
 func (service *cronService) channelTask() error {
+	logrus.Infof("running channelTask")
 	return nil
 }
 
 func (service *cronService) userTask() error {
-	teamUsers, err := service.slackService.FindTeamUsers(service.config.Slack.TeamId)
-	if err != nil {
-		return err
+	logrus.Infof("running userTask")
+	teamUsers, findUsersErr := service.slackService.FindTeamUsers(service.config.Slack.TeamId)
+	if findUsersErr != nil {
+		return findUsersErr
 	}
 
-	println(len(teamUsers))
+	logrus.Info(len(teamUsers))
 
 	for _, user := range teamUsers {
-		usr, err := service.userService.FindOneBySlackId(user.ID)
+		usr, findUserErr := service.userService.FindOneBySlackId(user.ID)
 
 		logrus.Infof("%+v", user)
 		logrus.Debugf("%+v", usr)
-		if err != nil {
-			logrus.Errorf("%+v", err)
-			return err
+		if findUserErr != nil {
+			logrus.Errorf("%+v", findUserErr)
+			return findUserErr
 		}
 
-		if usr.ID == 0 {
+		if usr == nil {
 			newUser := new(users.User)
 			newUser.SlackId = user.ID
 			newUser.Alias = user.Name
@@ -80,10 +82,19 @@ func (service *cronService) userTask() error {
 	return nil
 }
 
-func (service *cronService) Start() {
+func (service *cronService) Start() error {
 	scheduler := gocron.NewScheduler(time.Local)
-	_, _ = scheduler.Every(1).Minute().Do(service.userTask())
-	_, _ = scheduler.Every(1).Minute().Do(service.channelTask())
+	_, userTaskErr := scheduler.Every(1).Minute().Do(service.userTask)
+	_, channelTaskErr := scheduler.Every(1).Minute().Do(service.channelTask)
+
+	if userTaskErr != nil {
+		logrus.Errorf("user Task Error: %+v", userTaskErr)
+	}
+	if channelTaskErr != nil {
+		logrus.Errorf("channel Task Error: %+v", channelTaskErr)
+	}
 
 	scheduler.StartBlocking()
+
+	return nil
 }

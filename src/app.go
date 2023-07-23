@@ -76,7 +76,10 @@ func NewApp(
 	channels.NewRouter(v1.Group("/channels"), db, channelHandler)
 	slackbot.NewRouter(v1.Group("/slack"), db, slackHandler)
 
-	//cronService.Start()
+	err := cronService.Start()
+	if err != nil {
+		panic(err)
+	}
 
 	app.Use(func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusNotFound)
