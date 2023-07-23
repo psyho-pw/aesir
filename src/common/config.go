@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -59,9 +60,30 @@ func dbConfig() DB {
 }
 
 func slackConfig() SlackConfig {
+	appToken := os.Getenv("SLACK_APP_TOKEN")
+	botToken := os.Getenv("SLACK_BOT_TOKEN")
+
+	if appToken == "" {
+		log.Error("Missing slack app token")
+		os.Exit(1)
+	}
+
+	if !strings.HasPrefix(appToken, "xapp-") {
+		log.Error("app token must have the prefix \"xapp-\"")
+	}
+
+	if botToken == "" {
+		log.Error("Missing slack bot token")
+		os.Exit(1)
+	}
+
+	if !strings.HasPrefix(botToken, "xoxb-") {
+		log.Error("bot token must have the prefix \"xoxb-\"")
+	}
+
 	return SlackConfig{
-		AppToken: os.Getenv("SLACK_APP_TOKEN"),
-		BotToken: os.Getenv("SLACK_BOT_TOKEN"),
+		AppToken: appToken,
+		BotToken: botToken,
 		TeamId:   os.Getenv("TEAM_ID"),
 	}
 }

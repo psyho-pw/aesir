@@ -13,11 +13,11 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"os"
-	"strings"
 )
 
 type SlackService interface {
 	EventMux(innerEvent slackevents.EventsAPIInnerEvent) error
+	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels(teamId string) ([]slack.Channel, error)
 	FindChannel(channelId string) (*slack.Channel, error)
@@ -31,37 +31,14 @@ type slackService struct {
 }
 
 func NewSlackService(config *common.Config) SlackService {
-	appToken := config.Slack.AppToken
-	botToken := config.Slack.BotToken
-
-	if appToken == "" {
-		logrus.Error("Missing slack app token")
-		os.Exit(1)
-	}
-
-	if !strings.HasPrefix(appToken, "xapp-") {
-		logrus.Error("app token must have the prefix \"xapp-\"")
-	}
-
-	if botToken == "" {
-		logrus.Error("Missing slack bot token")
-		os.Exit(1)
-	}
-
-	if !strings.HasPrefix(botToken, "xoxb-") {
-		logrus.Error("bot token must have the prefix \"xoxb-\"")
-	}
-
 	api := slack.New(
-		botToken, slack.OptionDebug(true),
+		config.Slack.BotToken,
+		slack.OptionDebug(true),
 		slack.OptionLog(log.New(os.Stdout, "api: ", log.Lshortfile|log.LstdFlags)),
-		slack.OptionAppLevelToken(appToken),
+		slack.OptionAppLevelToken(config.Slack.AppToken),
 	)
 
-	return &slackService{
-		api: api,
-	}
-
+	return &slackService{api}
 }
 
 var SetService = wire.NewSet(NewSlackService)
@@ -71,23 +48,64 @@ func (service *slackService) EventMux(innerEvent slackevents.EventsAPIInnerEvent
 
 	switch evt := innerEvent.Data.(type) {
 	case *slackevents.MessageEvent:
-		//TODO 메세지 이벤트 발생 시 사내 인원일 경우 timestamp 최신화
-		if evt.BotID != "" || evt.ThreadTimeStamp != "" {
-			return nil
-		}
-		_, _, err := service.api.PostMessage(evt.Channel, slack.MsgOptionText("acknowledged", false))
-		if err != nil {
-			return err
-		}
+		return service.handleMessageEvent(evt)
 	case *slackevents.MemberJoinedChannelEvent:
-		//TODO 봇이 채널 조인 시 채널 정보 취득하여 저장
-		if evt.User != "U05JAA0TYP2" {
-			return nil
-		}
+		return service.memberJoinHandler(evt)
 	default:
+		return errors.New(fiber.StatusNoContent, "no matching event from incoming type")
+	}
+}
+
+func (service *slackService) memberJoinHandler(event *slackevents.MemberJoinedChannelEvent) error {
+	//TODO 봇이 채널 조인 시 채널 정보 취득하여 저장
+	self, slackErr := service.WhoAmI()
+	if slackErr != nil {
+		return slackErr
+	}
+	if event.User != self.UserID {
 		return nil
 	}
+
+	//TODO find channel from db & create channel
+	channel, slackChannelErr := service.FindChannel(event.Channel)
+	if slackChannelErr != nil {
+		return slackChannelErr
+	}
+
+	spew.Dump(channel)
 	return nil
+}
+
+func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent) error {
+	//TODO 메세지 이벤트 발생 시 사내 인원일 경우 timestamp 최신화
+	if event.BotID != "" || event.ThreadTimeStamp != "" {
+		return nil
+	}
+	_, _, err := service.api.PostMessage(event.Channel, slack.MsgOptionText("acknowledged", false))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type WhoAmI struct {
+	TeamID string `json:"teamId"`
+	UserID string `json:"userId"`
+	BotID  string `json:"botId"`
+}
+
+func (service *slackService) WhoAmI() (*WhoAmI, error) {
+	authTestResponse, err := service.api.AuthTest()
+	if err != nil {
+		return nil, err
+	}
+
+	whoAmI := &WhoAmI{
+		TeamID: authTestResponse.TeamID,
+		UserID: authTestResponse.UserID,
+		BotID:  authTestResponse.BotID,
+	}
+	return whoAmI, nil
 }
 
 func (service *slackService) FindTeam() (*slack.TeamInfo, error) {
