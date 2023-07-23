@@ -6,16 +6,16 @@ import (
 	"gorm.io/gorm"
 )
 
-type ChannelHandler interface {
+type Handler interface {
 	FineMany(c *fiber.Ctx) error
 	FindOneBySlackId(c *fiber.Ctx) error
 }
 
 type channelHandler struct {
-	service ChannelService
+	service Service
 }
 
-func NewChannelHandler(service ChannelService) ChannelHandler {
+func NewChannelHandler(service Service) Handler {
 	return &channelHandler{service}
 }
 

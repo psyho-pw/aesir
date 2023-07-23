@@ -11,7 +11,7 @@ import (
 	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/database"
-	"aesir/src/crons"
+	"aesir/src/cron"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"github.com/gofiber/fiber/v2"
@@ -23,16 +23,16 @@ import (
 func New() (*fiber.App, error) {
 	config := common.NewConfig()
 	db := database.NewDB(config)
-	userRepository := users.NewUserRepository(db)
-	userService := users.NewUserService(userRepository)
-	userHandler := users.NewUserHandler(userService)
-	channelRepository := channels.NewChannelRepository(db)
-	channelService := channels.NewChannelService(channelRepository)
-	channelHandler := channels.NewChannelHandler(channelService)
-	slackService := slackbot.NewSlackService(config)
-	slackHandler := slackbot.NewSlackHandler(slackService)
-	cronService := crons.NewCronService(config, slackService, userService, channelService)
-	app := src.NewApp(config, db, userHandler, channelHandler, slackHandler, cronService)
+	repository := users.NewUserRepository(db)
+	service := users.NewUserService(repository)
+	handler := users.NewUserHandler(service)
+	channelsRepository := channels.NewChannelRepository(db)
+	channelsService := channels.NewChannelService(channelsRepository)
+	channelsHandler := channels.NewChannelHandler(channelsService)
+	slackbotService := slackbot.NewSlackService(config)
+	slackbotHandler := slackbot.NewSlackHandler(slackbotService)
+	cronService := cron.New(config, db, slackbotService, service, channelsService)
+	app := src.NewApp(config, db, handler, channelsHandler, slackbotHandler, cronService)
 	return app, nil
 }
 

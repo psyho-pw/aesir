@@ -7,21 +7,21 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserRepository interface {
+type Repository interface {
 	Create(user User) (*User, error)
 	Find() ([]User, error)
 	FindOne(id int) (*User, error)
 	FindOneBySlackId(id string) (*User, error)
 	UpdateOne(id int, user User) (*User, error)
 	DeleteOne(id int) (*User, error)
-	WithTx(tx *gorm.DB) UserRepository
+	WithTx(tx *gorm.DB) Repository
 }
 
 type userRepository struct {
 	DB *gorm.DB
 }
 
-func NewUserRepository(db *gorm.DB) UserRepository {
+func NewUserRepository(db *gorm.DB) Repository {
 	return &userRepository{db}
 }
 
@@ -100,7 +100,7 @@ func (repository *userRepository) DeleteOne(id int) (*User, error) {
 	return &user, nil
 }
 
-func (repository *userRepository) WithTx(tx *gorm.DB) UserRepository {
+func (repository *userRepository) WithTx(tx *gorm.DB) Repository {
 	repository.DB = tx
 	return repository
 }

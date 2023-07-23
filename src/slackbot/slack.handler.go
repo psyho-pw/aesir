@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type SlackHandler interface {
+type Handler interface {
 	EventMux(c *fiber.Ctx) error
 	WhoAmI(c *fiber.Ctx) error
 	FindTeam(c *fiber.Ctx) error
@@ -20,10 +20,10 @@ type SlackHandler interface {
 }
 
 type slackHandler struct {
-	service SlackService
+	service Service
 }
 
-func NewSlackHandler(service SlackService) SlackHandler {
+func NewSlackHandler(service Service) Handler {
 	return &slackHandler{service: service}
 }
 

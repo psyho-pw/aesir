@@ -7,20 +7,20 @@ import (
 	"gorm.io/gorm"
 )
 
-type ChannelRepository interface {
+type Repository interface {
 	Create(channel Channel) (*Channel, error)
 	FindMany() ([]Channel, error)
 	FindOneBySlackId(slackId string) (*Channel, error)
 	UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error)
 	DeleteOneBySlackId(slackId string) (*Channel, error)
-	WithTx(tx *gorm.DB) ChannelRepository
+	WithTx(tx *gorm.DB) Repository
 }
 
 type channelRepository struct {
 	DB *gorm.DB
 }
 
-func NewChannelRepository(db *gorm.DB) ChannelRepository {
+func NewChannelRepository(db *gorm.DB) Repository {
 	return &channelRepository{db}
 }
 
@@ -81,7 +81,7 @@ func (repository channelRepository) DeleteOneBySlackId(slackId string) (*Channel
 	return &channel, nil
 }
 
-func (repository channelRepository) WithTx(tx *gorm.DB) ChannelRepository {
+func (repository channelRepository) WithTx(tx *gorm.DB) Repository {
 	repository.DB = tx
 	return repository
 }

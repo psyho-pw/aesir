@@ -15,7 +15,7 @@ import (
 	"os"
 )
 
-type SlackService interface {
+type Service interface {
 	EventMux(innerEvent slackevents.EventsAPIInnerEvent) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
@@ -23,14 +23,14 @@ type SlackService interface {
 	FindChannel(channelId string) (*slack.Channel, error)
 	FindLatestChannelMessage(channelId string) (*slack.Message, error)
 	FindTeamUsers(teamId string) ([]slack.User, error)
-	WithTx(tx *gorm.DB) SlackService
+	WithTx(tx *gorm.DB) Service
 }
 
 type slackService struct {
 	api *slack.Client
 }
 
-func NewSlackService(config *common.Config) SlackService {
+func NewSlackService(config *common.Config) Service {
 	api := slack.New(
 		config.Slack.BotToken,
 		slack.OptionDebug(true),
@@ -180,6 +180,6 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 	return funk.Filter(users, pred).([]slack.User), nil
 }
 
-func (service *slackService) WithTx(tx *gorm.DB) SlackService {
+func (service *slackService) WithTx(tx *gorm.DB) Service {
 	return service
 }

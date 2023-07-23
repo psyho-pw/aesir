@@ -5,21 +5,21 @@ import (
 	"gorm.io/gorm"
 )
 
-type UserService interface {
+type Service interface {
 	CreateOne(*User) (*User, error)
 	FindMany() ([]User, error)
 	FindOne(id int) (*User, error)
 	FindOneBySlackId(id string) (*User, error)
 	UpdateOne(id int, user *User) (*User, error)
 	DeleteOne(id int) (*User, error)
-	WithTx(tx *gorm.DB) UserService
+	WithTx(tx *gorm.DB) Service
 }
 
 type userService struct {
-	repository UserRepository
+	repository Repository
 }
 
-func NewUserService(userRepository UserRepository) UserService {
+func NewUserService(userRepository Repository) Service {
 	return &userService{repository: userRepository}
 }
 
@@ -73,7 +73,7 @@ func (service *userService) DeleteOne(id int) (*User, error) {
 	return user, nil
 }
 
-func (service *userService) WithTx(tx *gorm.DB) UserService {
+func (service *userService) WithTx(tx *gorm.DB) Service {
 	service.repository = service.repository.WithTx(tx)
 	return service
 }

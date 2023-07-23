@@ -5,20 +5,20 @@ import (
 	"gorm.io/gorm"
 )
 
-type ChannelService interface {
+type Service interface {
 	Create(channel Channel) (*Channel, error)
 	FindMany() ([]Channel, error)
 	FindOneBySlackId(slackId string) (*Channel, error)
 	UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error)
 	DeleteOneBySlackId(slackId string) (*Channel, error)
-	WithTx(tx *gorm.DB) ChannelService
+	WithTx(tx *gorm.DB) Service
 }
 
 type channelService struct {
-	repository ChannelRepository
+	repository Repository
 }
 
-func NewChannelService(channelRepository ChannelRepository) ChannelService {
+func NewChannelService(channelRepository Repository) Service {
 	return &channelService{channelRepository}
 }
 
@@ -64,7 +64,7 @@ func (service *channelService) DeleteOneBySlackId(slackId string) (*Channel, err
 	return result, nil
 }
 
-func (service *channelService) WithTx(tx *gorm.DB) ChannelService {
+func (service *channelService) WithTx(tx *gorm.DB) Service {
 	service.repository = service.repository.WithTx(tx)
 	return service
 }

@@ -8,16 +8,16 @@ import (
 	"strconv"
 )
 
-type UserHandler interface {
+type Handler interface {
 	FindMany(c *fiber.Ctx) error
 	FindOne(c *fiber.Ctx) error
 }
 
 type userHandler struct {
-	service UserService
+	service Service
 }
 
-func NewUserHandler(service UserService) UserHandler {
+func NewUserHandler(service Service) Handler {
 	return &userHandler{service: service}
 }
 
