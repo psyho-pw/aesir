@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"os"
+	"reflect"
 )
 
 type Service interface {
@@ -78,9 +79,26 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoin
 		return err
 	}
 	if persistentChannel != nil {
-		//TODO update channel info
+		newChannel := new(channels.Channel)
+		newChannel.SlackId = channel.ID
+		newChannel.Name = channel.Name
+		newChannel.Creator = channel.Creator
+		newChannel.IsPrivate = channel.IsPrivate
+		newChannel.IsArchived = channel.IsArchived
+
+		isSame := reflect.DeepEqual(persistentChannel, newChannel)
+		if isSame == true {
+			return nil
+		}
+
+		_, updateErr := service.channelService.UpdateOneBySlackId(channel.ID, *newChannel)
+		if updateErr != nil {
+			return updateErr
+		}
+
 		return nil
 	}
+
 	newChannel := new(channels.Channel)
 	newChannel.SlackId = channel.ID
 	newChannel.Name = channel.Name
@@ -88,9 +106,9 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoin
 	newChannel.IsPrivate = channel.IsPrivate
 	newChannel.IsArchived = channel.IsArchived
 
-	_, channelCreationErr := service.channelService.Create(*newChannel)
-	if channelCreationErr != nil {
-		return channelCreationErr
+	_, creationErr := service.channelService.Create(*newChannel)
+	if creationErr != nil {
+		return creationErr
 	}
 
 	return nil
