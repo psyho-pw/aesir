@@ -59,7 +59,6 @@ func (service *slackService) EventMux(innerEvent slackevents.EventsAPIInnerEvent
 }
 
 func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoinedChannelEvent) error {
-	//TODO 봇이 채널 조인 시 채널 정보 취득하여 저장
 	self, slackErr := service.WhoAmI()
 	if slackErr != nil {
 		return slackErr
@@ -68,7 +67,6 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoin
 		return nil
 	}
 
-	//TODO find channel from db & create channel
 	channel, slackChannelErr := service.FindChannel(event.Channel)
 	if slackChannelErr != nil {
 		return slackChannelErr
