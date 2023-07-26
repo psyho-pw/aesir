@@ -1,6 +1,7 @@
 package slackbot
 
 import (
+	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/errors"
 	"github.com/davecgh/go-spew/spew"
@@ -27,10 +28,11 @@ type Service interface {
 }
 
 type slackService struct {
-	api *slack.Client
+	api            *slack.Client
+	channelService channels.Service
 }
 
-func NewSlackService(config *common.Config) Service {
+func NewSlackService(config *common.Config, channelService channels.Service) Service {
 	api := slack.New(
 		config.Slack.BotToken,
 		slack.OptionDebug(true),
@@ -38,7 +40,7 @@ func NewSlackService(config *common.Config) Service {
 		slack.OptionAppLevelToken(config.Slack.AppToken),
 	)
 
-	return &slackService{api}
+	return &slackService{api, channelService}
 }
 
 var SetService = wire.NewSet(NewSlackService)
@@ -50,13 +52,13 @@ func (service *slackService) EventMux(innerEvent slackevents.EventsAPIInnerEvent
 	case *slackevents.MessageEvent:
 		return service.handleMessageEvent(evt)
 	case *slackevents.MemberJoinedChannelEvent:
-		return service.memberJoinHandler(evt)
+		return service.handleMemberJoinEvent(evt)
 	default:
 		return errors.New(fiber.StatusNoContent, "no matching event from incoming type")
 	}
 }
 
-func (service *slackService) memberJoinHandler(event *slackevents.MemberJoinedChannelEvent) error {
+func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoinedChannelEvent) error {
 	//TODO 봇이 채널 조인 시 채널 정보 취득하여 저장
 	self, slackErr := service.WhoAmI()
 	if slackErr != nil {
@@ -73,6 +75,26 @@ func (service *slackService) memberJoinHandler(event *slackevents.MemberJoinedCh
 	}
 
 	spew.Dump(channel)
+	persistentChannel, err := service.channelService.FindOneBySlackId(channel.ID)
+	if err != nil {
+		return err
+	}
+	if persistentChannel != nil {
+		//TODO update channel info
+		return nil
+	}
+	newChannel := new(channels.Channel)
+	newChannel.SlackId = channel.ID
+	newChannel.Name = channel.Name
+	newChannel.Creator = channel.Creator
+	newChannel.IsPrivate = channel.IsPrivate
+	newChannel.IsArchived = channel.IsArchived
+
+	_, channelCreationErr := service.channelService.Create(*newChannel)
+	if channelCreationErr != nil {
+		return channelCreationErr
+	}
+
 	return nil
 }
 
@@ -201,5 +223,6 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) Service {
+	service.channelService = service.channelService.WithTx(tx)
 	return service
 }
