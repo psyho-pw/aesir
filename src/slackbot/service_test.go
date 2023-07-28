@@ -10,16 +10,14 @@ import (
 	"testing"
 )
 
-type MySuite struct {
+type SlackbotSuit struct {
 	suite.Suite
 	service Service
 }
 
-func (suite *MySuite) SetupTest() {
-	//suite.Data = []string{"one", "two", "three"}
+func (suite *SlackbotSuit) SetupTest() {
 	err := godotenv.Load("../../.env")
 	if err != nil {
-		spew.Dump(err)
 		panic("Error loading .env file")
 	}
 	slackService := NewSlackService(common.NewConfig(), channels.NewMockService(suite.T()))
@@ -27,28 +25,41 @@ func (suite *MySuite) SetupTest() {
 	println("initialized service instance")
 }
 
-func (suite *MySuite) BeforeTest(suiteName, testName string) {
+func (suite *SlackbotSuit) BeforeTest(suiteName, testName string) {
 	// Run some code before each test
 }
 
-func (suite *MySuite) TestExample() {
+func (suite *SlackbotSuit) TestWhoAmI() {
 	data, err := suite.service.WhoAmI()
 	spew.Dump(data)
 	assert.Equal(suite.T(), nil, err)
+	assert.IsType(suite.T(), &WhoAmI{}, data)
 }
 
-func (suite *MySuite) TestWhoAmI() {
+func (suite *SlackbotSuit) TestFindTeam() {
 
-	config := common.NewConfig()
-	spew.Dump(config)
-	//slackService := NewSlackService(common.NewConfig(), channels.NewMockService(t))
-	//info, err := slackService.WhoAmI()
-	assert.Equal(suite.T(), false, false)
-	//
-	//spew.Dump(info)
-	// Test something using the Data fixture here
 }
 
-func TestExampleTestSuite(t *testing.T) {
-	suite.Run(t, new(MySuite))
+func (suite *SlackbotSuit) TestFindChannels() {
+
+}
+
+func (suite *SlackbotSuit) TestFindJoinedChannels() {
+
+}
+
+func (suite *SlackbotSuit) TestFindJChannel() {
+
+}
+
+func (suite *SlackbotSuit) FindLatestChannelMessage() {
+
+}
+
+func (suite *SlackbotSuit) FindTeamUsers() {
+
+}
+
+func TestSuite(t *testing.T) {
+	suite.Run(t, new(SlackbotSuit))
 }
