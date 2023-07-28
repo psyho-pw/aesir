@@ -48,6 +48,7 @@ go.work
 !Dockerfile
 !.air.toml
 !env.example
+!.mockery.yaml
 
 # ...even if they are in subdirectories
 !*/

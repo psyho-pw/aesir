@@ -22,6 +22,9 @@ compile:
 build:
 	go build -o out/${BINARY_NAME} main.go wire_gen.go
 
+generate-mock:
+	go generate ./...
+
 
 clean:
 	go clean -modcache

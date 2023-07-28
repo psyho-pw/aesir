@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+//go:generate mockery --name Repository --case underscore --inpackage
 type Repository interface {
 	Create(channel Channel) (*Channel, error)
 	CreateMany(channels []Channel) ([]Channel, error)
