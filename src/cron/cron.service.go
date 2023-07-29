@@ -3,6 +3,7 @@ package cron
 import (
 	"aesir/src/channels"
 	"aesir/src/common"
+	"aesir/src/common/utils"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"github.com/go-co-op/gocron"
@@ -75,6 +76,7 @@ func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func(
 }
 
 func (service *cronService) userTask(tx *gorm.DB) error {
+	defer utils.Timer()()
 	logrus.Infof("running userTask")
 	teamUsers, findUsersErr := service.slackService.WithTx(tx).FindTeamUsers(service.config.Slack.TeamId)
 	if findUsersErr != nil {
@@ -117,6 +119,7 @@ func (service *cronService) userTask(tx *gorm.DB) error {
 }
 
 func (service *cronService) channelTask(tx *gorm.DB) error {
+	defer utils.Timer()()
 	logrus.Infof("running channelTask")
 	joinedChannels, err := service.slackService.WithTx(tx).FindJoinedChannels()
 	if err != nil {

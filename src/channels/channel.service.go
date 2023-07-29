@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 )
 
+//go:generate mockery --name Service --case underscore --inpackage
 type Service interface {
 	Create(channel Channel) (*Channel, error)
 	CreateMany(channels []Channel) ([]Channel, error)

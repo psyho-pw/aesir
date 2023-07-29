@@ -1,9 +1,9 @@
 package slackbot
 
 import (
+	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/errors"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/slack-go/slack"
@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"os"
+	"reflect"
 )
 
 type Service interface {
@@ -27,10 +28,11 @@ type Service interface {
 }
 
 type slackService struct {
-	api *slack.Client
+	api            *slack.Client
+	channelService channels.Service
 }
 
-func NewSlackService(config *common.Config) Service {
+func NewSlackService(config *common.Config, channelService channels.Service) Service {
 	api := slack.New(
 		config.Slack.BotToken,
 		slack.OptionDebug(true),
@@ -38,26 +40,25 @@ func NewSlackService(config *common.Config) Service {
 		slack.OptionAppLevelToken(config.Slack.AppToken),
 	)
 
-	return &slackService{api}
+	return &slackService{api, channelService}
 }
 
 var SetService = wire.NewSet(NewSlackService)
 
 func (service *slackService) EventMux(innerEvent slackevents.EventsAPIInnerEvent) error {
-	spew.Dump(innerEvent)
+	//spew.Dump(innerEvent)
 
 	switch evt := innerEvent.Data.(type) {
 	case *slackevents.MessageEvent:
 		return service.handleMessageEvent(evt)
 	case *slackevents.MemberJoinedChannelEvent:
-		return service.memberJoinHandler(evt)
+		return service.handleMemberJoinEvent(evt)
 	default:
 		return errors.New(fiber.StatusNoContent, "no matching event from incoming type")
 	}
 }
 
-func (service *slackService) memberJoinHandler(event *slackevents.MemberJoinedChannelEvent) error {
-	//TODO 봇이 채널 조인 시 채널 정보 취득하여 저장
+func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoinedChannelEvent) error {
 	self, slackErr := service.WhoAmI()
 	if slackErr != nil {
 		return slackErr
@@ -66,13 +67,48 @@ func (service *slackService) memberJoinHandler(event *slackevents.MemberJoinedCh
 		return nil
 	}
 
-	//TODO find channel from db & create channel
 	channel, slackChannelErr := service.FindChannel(event.Channel)
 	if slackChannelErr != nil {
 		return slackChannelErr
 	}
 
-	spew.Dump(channel)
+	persistentChannel, err := service.channelService.FindOneBySlackId(channel.ID)
+	if err != nil {
+		return err
+	}
+	if persistentChannel != nil {
+		newChannel := new(channels.Channel)
+		newChannel.SlackId = channel.ID
+		newChannel.Name = channel.Name
+		newChannel.Creator = channel.Creator
+		newChannel.IsPrivate = channel.IsPrivate
+		newChannel.IsArchived = channel.IsArchived
+
+		isSame := reflect.DeepEqual(persistentChannel, newChannel)
+		if isSame == true {
+			return nil
+		}
+
+		_, updateErr := service.channelService.UpdateOneBySlackId(channel.ID, *newChannel)
+		if updateErr != nil {
+			return updateErr
+		}
+
+		return nil
+	}
+
+	newChannel := new(channels.Channel)
+	newChannel.SlackId = channel.ID
+	newChannel.Name = channel.Name
+	newChannel.Creator = channel.Creator
+	newChannel.IsPrivate = channel.IsPrivate
+	newChannel.IsArchived = channel.IsArchived
+
+	_, creationErr := service.channelService.Create(*newChannel)
+	if creationErr != nil {
+		return creationErr
+	}
+
 	return nil
 }
 
@@ -81,10 +117,10 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 	if event.BotID != "" || event.ThreadTimeStamp != "" {
 		return nil
 	}
-	_, _, err := service.api.PostMessage(event.Channel, slack.MsgOptionText("acknowledged", false))
-	if err != nil {
-		return err
-	}
+	//_, _, err := service.api.PostMessage(event.Channel, slack.MsgOptionText("acknowledged", false))
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }
 
@@ -118,7 +154,7 @@ func (service *slackService) FindChannels() ([]slack.Channel, error) {
 		return nil, authErr
 	}
 
-	channels, _, err := service.api.GetConversations(
+	channelsData, _, err := service.api.GetConversations(
 		&slack.GetConversationsParameters{
 			ExcludeArchived: true,
 			Limit:           1000,
@@ -130,7 +166,7 @@ func (service *slackService) FindChannels() ([]slack.Channel, error) {
 		return nil, err
 	}
 
-	return channels, nil
+	return channelsData, nil
 }
 
 func (service *slackService) FindJoinedChannels() ([]slack.Channel, error) {
@@ -139,7 +175,7 @@ func (service *slackService) FindJoinedChannels() ([]slack.Channel, error) {
 		return nil, authErr
 	}
 
-	channels, _, err := service.api.GetConversations(
+	channelsData, _, err := service.api.GetConversations(
 		&slack.GetConversationsParameters{
 			ExcludeArchived: true,
 			Limit:           1000,
@@ -155,7 +191,7 @@ func (service *slackService) FindJoinedChannels() ([]slack.Channel, error) {
 		return i.IsChannel == true && i.IsMember == true
 	}
 
-	return funk.Filter(channels, predicate).([]slack.Channel), nil
+	return funk.Filter(channelsData, predicate).([]slack.Channel), nil
 }
 
 func (service *slackService) FindChannel(channelId string) (*slack.Channel, error) {
@@ -201,5 +237,6 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) Service {
+	service.channelService = service.channelService.WithTx(tx)
 	return service
 }
