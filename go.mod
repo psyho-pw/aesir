@@ -18,6 +18,7 @@ require (
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
+	github.com/brianvoe/gofakeit v3.18.0+incompatible // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-co-op/gocron v1.30.1 // indirect
 	github.com/go-sql-driver/mysql v1.7.1 // indirect

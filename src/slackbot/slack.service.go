@@ -119,10 +119,10 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 	if event.BotID != "" || event.ThreadTimeStamp != "" {
 		return nil
 	}
-	_, _, err := service.api.PostMessage(event.Channel, slack.MsgOptionText("acknowledged", false))
-	if err != nil {
-		return err
-	}
+	//_, _, err := service.api.PostMessage(event.Channel, slack.MsgOptionText("acknowledged", false))
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }
 
@@ -156,7 +156,7 @@ func (service *slackService) FindChannels() ([]slack.Channel, error) {
 		return nil, authErr
 	}
 
-	channels, _, err := service.api.GetConversations(
+	channelsData, _, err := service.api.GetConversations(
 		&slack.GetConversationsParameters{
 			ExcludeArchived: true,
 			Limit:           1000,
@@ -168,7 +168,7 @@ func (service *slackService) FindChannels() ([]slack.Channel, error) {
 		return nil, err
 	}
 
-	return channels, nil
+	return channelsData, nil
 }
 
 func (service *slackService) FindJoinedChannels() ([]slack.Channel, error) {
@@ -177,7 +177,7 @@ func (service *slackService) FindJoinedChannels() ([]slack.Channel, error) {
 		return nil, authErr
 	}
 
-	channels, _, err := service.api.GetConversations(
+	channelsData, _, err := service.api.GetConversations(
 		&slack.GetConversationsParameters{
 			ExcludeArchived: true,
 			Limit:           1000,
@@ -193,7 +193,7 @@ func (service *slackService) FindJoinedChannels() ([]slack.Channel, error) {
 		return i.IsChannel == true && i.IsMember == true
 	}
 
-	return funk.Filter(channels, predicate).([]slack.Channel), nil
+	return funk.Filter(channelsData, predicate).([]slack.Channel), nil
 }
 
 func (service *slackService) FindChannel(channelId string) (*slack.Channel, error) {

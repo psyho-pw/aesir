@@ -22,19 +22,21 @@ compile:
 build:
 	go build -o out/${BINARY_NAME} main.go wire_gen.go
 
-generate-mock:
-	go generate ./...
-
+deps:
+	go mod download && go mod tidy
 
 clean:
 	go clean -modcache
 	rm -r out
 
+generate-mock:
+	go generate ./...
+
+test:
+	go test -v ./...
+
 run-prod:
 	./out/${BINARY_NAME}
-
-deps:
-	go mod download && go mod tidy
 
 vet:
 	go vet
