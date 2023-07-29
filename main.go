@@ -5,6 +5,7 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"os"
+	"time"
 )
 
 func init() {
@@ -15,6 +16,14 @@ func init() {
 }
 
 func main() {
+	location, err := time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		panic(err)
+	}
+
+	// Set the timezone for the current process
+	time.Local = location
+
 	server, _ := New()
 	port := os.Getenv("PORT")
 	address := func(appEnv string) string {

@@ -20,7 +20,7 @@ compile:
     GOARCH=amd64 GOOS=linux go build -o out/${BINARY_NAME}-linux main.go wire_gen.go
 
 build:
-	go build -o out/${BINARY_NAME} main.go wire_gen.go
+	go build -o out/${BINARY_NAME} .
 
 deps:
 	go mod download && go mod tidy
@@ -42,14 +42,17 @@ vet:
 	go vet
 
 docker-build:
-	docker build --tag fishcreek/${BINARY_NAME} -f Dockerfile .
+	docker build --platform linux/amd64 --tag fishcreek/${BINARY_NAME} -f Dockerfile .
+
+docker-push:
+	docker push fishcreek/${BINARY_NAME}
 
 docker-run:
 	@if [ !"$$(docker ps -a -q -f name=${BINARY_NAME})" ]; then \
   		if [ "$$(docker ps -aq -f status=exited -f name=${BINARY_NAME})" ]; then \
   			docker rm ${BINARY_NAME}; \
         fi; \
-            docker run -it --name ${BINARY_NAME} -p 8000:8000  ${BINARY_NAME}; \
+            docker run -it --name ${BINARY_NAME} -p 8000:8000  fishcreek/${BINARY_NAME}; \
     fi
 
 analysis:
