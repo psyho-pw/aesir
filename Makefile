@@ -42,7 +42,7 @@ vet:
 	go vet
 
 docker-build:
-	docker build -t ${BINARY_NAME} .
+	docker build --tag fishcreek/${BINARY_NAME} -f Dockerfile .
 
 docker-run:
 	@if [ !"$$(docker ps -a -q -f name=${BINARY_NAME})" ]; then \
