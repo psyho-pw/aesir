@@ -4,7 +4,6 @@ import (
 	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/errors"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/slack-go/slack"
@@ -47,7 +46,7 @@ func NewSlackService(config *common.Config, channelService channels.Service) Ser
 var SetService = wire.NewSet(NewSlackService)
 
 func (service *slackService) EventMux(innerEvent slackevents.EventsAPIInnerEvent) error {
-	spew.Dump(innerEvent)
+	//spew.Dump(innerEvent)
 
 	switch evt := innerEvent.Data.(type) {
 	case *slackevents.MessageEvent:
@@ -73,7 +72,6 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoin
 		return slackChannelErr
 	}
 
-	spew.Dump(channel)
 	persistentChannel, err := service.channelService.FindOneBySlackId(channel.ID)
 	if err != nil {
 		return err
