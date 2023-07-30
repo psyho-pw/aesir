@@ -9,6 +9,7 @@ import (
 
 //go:generate mockery --name Repository --case underscore --inpackage
 type Repository interface {
+	Create(message Message) (*Message, error)
 	FindMany() ([]Message, error)
 	WithTx(tx *gorm.DB) Repository
 }
@@ -30,6 +31,18 @@ func (repository *messageRepository) FindMany() ([]Message, error) {
 	}
 
 	return messages, nil
+}
+
+func (repository *messageRepository) Create(message Message) (*Message, error) {
+	result := repository.DB.Create(&message)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return nil, errors.New(fiber.StatusNotFound, "not affected")
+	}
+
+	return &message, nil
 }
 
 func (repository *messageRepository) WithTx(tx *gorm.DB) Repository {

@@ -11,5 +11,5 @@ type User struct {
 	Name      string `json:"name"`
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
-	IsManager bool   `json:"isManager"`
+	IsManager bool   `json:"isManager" gorm:"default:0"`
 }
