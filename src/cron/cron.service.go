@@ -162,6 +162,9 @@ func (service *cronService) channelTask(tx *gorm.DB) error {
 }
 
 func (service *cronService) Start() error {
+	if service.config.AppEnv != "production" {
+		return nil
+	}
 	scheduler := gocron.NewScheduler(time.Local)
 	//_, _ = scheduler.CronWithSeconds("0 * * * * *").Do(service.transactionWrapper(service.userTask))
 	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.userTask))

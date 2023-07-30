@@ -10,6 +10,7 @@ type Service interface {
 	Create(channel Channel) (*Channel, error)
 	CreateMany(channels []Channel) ([]Channel, error)
 	FindMany() ([]Channel, error)
+	FindManyWithMessage() ([]Channel, error)
 	FindOneBySlackId(slackId string) (*Channel, error)
 	UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error)
 	DeleteOneBySlackId(slackId string) (*Channel, error)
@@ -36,6 +37,10 @@ func (service *channelService) CreateMany(channels []Channel) ([]Channel, error)
 
 func (service *channelService) FindMany() ([]Channel, error) {
 	return service.repository.FindMany()
+}
+
+func (service *channelService) FindManyWithMessage() ([]Channel, error) {
+	return service.repository.FindManyWithMessage()
 }
 
 func (service *channelService) FindOneBySlackId(slackId string) (*Channel, error) {

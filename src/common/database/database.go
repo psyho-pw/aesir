@@ -35,8 +35,8 @@ func NewDB(config *common.Config) *gorm.DB {
 
 	var migrationError error
 	migrationError = connection.AutoMigrate(users.User{})
-	migrationError = connection.AutoMigrate(channels.Channel{})
 	migrationError = connection.AutoMigrate(messages.Message{})
+	migrationError = connection.AutoMigrate(channels.Channel{})
 	if migrationError != nil {
 		panic(err)
 	}

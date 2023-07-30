@@ -8,5 +8,6 @@ import (
 
 func NewRouter(router fiber.Router, db *gorm.DB, handler Handler) {
 	router.Get("", middlewares.TxMiddleware(db), handler.FineMany)
+	router.Get("/test", middlewares.TxMiddleware(db), handler.FindManyWithMessage)
 	router.Get("/:id", middlewares.TxMiddleware(db), handler.FindOneBySlackId)
 }

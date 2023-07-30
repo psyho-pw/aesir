@@ -8,6 +8,7 @@ import (
 
 type Handler interface {
 	FineMany(c *fiber.Ctx) error
+	FindManyWithMessage(c *fiber.Ctx) error
 	FindOneBySlackId(c *fiber.Ctx) error
 }
 
@@ -25,6 +26,17 @@ func (handler channelHandler) FineMany(c *fiber.Ctx) error {
 	tx := c.Locals("TX").(*gorm.DB)
 
 	result, err := handler.service.WithTx(tx).FindMany()
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).JSON(result)
+}
+
+func (handler channelHandler) FindManyWithMessage(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
+
+	result, err := handler.service.WithTx(tx).FindManyWithMessage()
 	if err != nil {
 		return err
 	}
