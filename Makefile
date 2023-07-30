@@ -23,13 +23,16 @@ build:
 	go build -o out/${BINARY_NAME} .
 
 deps:
-	go mod download && go mod tidy
+	go mod download
+
+tidy:
+	go mod tidy
 
 clean:
 	go clean -modcache
 	rm -r out
 
-generate-mock:
+generate:
 	go generate ./...
 
 test:
