@@ -3,6 +3,7 @@ package database
 import (
 	"aesir/src/channels"
 	"aesir/src/common"
+	"aesir/src/messages"
 	"aesir/src/users"
 	"fmt"
 	"github.com/google/wire"
@@ -35,6 +36,7 @@ func NewDB(config *common.Config) *gorm.DB {
 	var migrationError error
 	migrationError = connection.AutoMigrate(users.User{})
 	migrationError = connection.AutoMigrate(channels.Channel{})
+	migrationError = connection.AutoMigrate(messages.Message{})
 	if migrationError != nil {
 		panic(err)
 	}
