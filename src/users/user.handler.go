@@ -5,6 +5,7 @@ import (
 	"aesir/src/common/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
+	"gorm.io/gorm"
 	"strconv"
 )
 
@@ -24,7 +25,8 @@ func NewUserHandler(service Service) Handler {
 var SetHandler = wire.NewSet(NewUserHandler)
 
 func (handler userHandler) FindMany(c *fiber.Ctx) error {
-	result, err := handler.service.FindMany()
+	tx := c.Locals("TX").(*gorm.DB)
+	result, err := handler.service.WithTx(tx).FindMany()
 	if err != nil {
 		return err
 	}
@@ -33,12 +35,13 @@ func (handler userHandler) FindMany(c *fiber.Ctx) error {
 }
 
 func (handler userHandler) FindOne(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
 	id, parseErr := strconv.Atoi(c.Params("id"))
 	if parseErr != nil {
 		return errors.HandleParseError(c, parseErr)
 	}
 
-	result, err := handler.service.FindOne(id)
+	result, err := handler.service.WithTx(tx).FindOne(id)
 	if err != nil {
 		return err
 	}
