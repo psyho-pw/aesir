@@ -157,8 +157,8 @@ func (suite *SlackbotSuit) TestEventMux() {
 	}
 
 	suite.userService.On("FindOneBySlackId", mock.Anything, mock.Anything).Return(new(users.User), nil)
-	suite.channelService.On("FindOneBySlackId", mock.Anything, mock.Anything).Return(new(channels.Channel), nil)
-	suite.channelService.On("UpdateOneBySlackId", mock.Anything, mock.Anything).Return(new(channels.Channel), nil)
+	suite.channelService.On("FindOneBySlackId", mock.Anything, mock.Anything).Return(mockChannel, nil)
+	suite.channelService.On("UpdateOneBySlackId", mock.Anything, mock.Anything).Return(mockChannel, nil)
 
 	err1 := suite.service.EventMux(memberJoinInnerEvt)
 
