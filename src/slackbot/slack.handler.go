@@ -42,7 +42,7 @@ func (handler slackHandler) EventMux(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(eventsAPIEvent.Data)
 	case slackevents.CallbackEvent:
 		innerEvent := eventsAPIEvent.InnerEvent
-		evtErr := handler.service.WithTx(tx).EventMux(innerEvent)
+		evtErr := handler.service.WithTx(tx).EventMux(&innerEvent)
 		if evtErr != nil {
 			logrus.Errorf("%+v", evtErr)
 			return evtErr

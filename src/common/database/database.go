@@ -3,6 +3,7 @@ package database
 import (
 	"aesir/src/channels"
 	"aesir/src/common"
+	"aesir/src/messages"
 	"aesir/src/users"
 	"fmt"
 	"github.com/google/wire"
@@ -22,11 +23,16 @@ func NewDB(config *common.Config) *gorm.DB {
 		config.DB.MariadbDatabase,
 	)
 
-	connection, err := gorm.Open(mysql.New(mysql.Config{
-		DSN:                      dsn,
-		DefaultStringSize:        256,
-		DefaultDatetimePrecision: &datetimePrecision,
-	}), &gorm.Config{})
+	connection, err := gorm.Open(
+		mysql.New(mysql.Config{
+			DSN:                      dsn,
+			DefaultStringSize:        256,
+			DefaultDatetimePrecision: &datetimePrecision,
+		}),
+		&gorm.Config{
+			FullSaveAssociations: true,
+		},
+	)
 
 	if err != nil {
 		panic(err)
@@ -34,6 +40,7 @@ func NewDB(config *common.Config) *gorm.DB {
 
 	var migrationError error
 	migrationError = connection.AutoMigrate(users.User{})
+	migrationError = connection.AutoMigrate(messages.Message{})
 	migrationError = connection.AutoMigrate(channels.Channel{})
 	if migrationError != nil {
 		panic(err)
