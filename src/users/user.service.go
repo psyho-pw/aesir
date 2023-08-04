@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 )
 
+//go:generate mockery --name Service --case underscore --inpackage
 type Service interface {
 	CreateOne(*User) (*User, error)
 	CreateMany([]User) ([]User, error)
