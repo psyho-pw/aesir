@@ -4,8 +4,12 @@ import (
 	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/errors"
+	"aesir/src/messages"
+	"aesir/src/users"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
+	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/thoas/go-funk"
@@ -13,10 +17,11 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strconv"
 )
 
 type Service interface {
-	EventMux(innerEvent slackevents.EventsAPIInnerEvent) error
+	EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -29,10 +34,12 @@ type Service interface {
 
 type slackService struct {
 	api            *slack.Client
+	userService    users.Service
 	channelService channels.Service
+	messageService messages.Service
 }
 
-func NewSlackService(config *common.Config, channelService channels.Service) Service {
+func NewSlackService(config *common.Config, userService users.Service, channelService channels.Service, messageService messages.Service) Service {
 	api := slack.New(
 		config.Slack.BotToken,
 		slack.OptionDebug(true),
@@ -40,21 +47,20 @@ func NewSlackService(config *common.Config, channelService channels.Service) Ser
 		slack.OptionAppLevelToken(config.Slack.AppToken),
 	)
 
-	return &slackService{api, channelService}
+	return &slackService{api, userService, channelService, messageService}
 }
 
 var SetService = wire.NewSet(NewSlackService)
 
-func (service *slackService) EventMux(innerEvent slackevents.EventsAPIInnerEvent) error {
-	//spew.Dump(innerEvent)
-
+func (service *slackService) EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error {
 	switch evt := innerEvent.Data.(type) {
 	case *slackevents.MessageEvent:
 		return service.handleMessageEvent(evt)
 	case *slackevents.MemberJoinedChannelEvent:
 		return service.handleMemberJoinEvent(evt)
 	default:
-		return errors.New(fiber.StatusNoContent, "no matching event from incoming type")
+		logrus.Debugf("no matching event from incoming type")
+		return nil
 	}
 }
 
@@ -112,15 +118,51 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoin
 	return nil
 }
 
+// 메세지 이벤트 발생 시 화자가 사내 인원일 경우 message timestamp 최신화
+// 사내 인원이 아닐 경우 pass
 func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent) error {
-	//TODO 메세지 이벤트 발생 시 사내 인원일 경우 timestamp 최신화
 	if event.BotID != "" || event.ThreadTimeStamp != "" {
 		return nil
 	}
-	//_, _, err := service.api.PostMessage(event.Channel, slack.MsgOptionText("acknowledged", false))
-	//if err != nil {
-	//	return err
-	//}
+
+	user, fetchUserErr := service.userService.FindOneBySlackId(event.User)
+	if fetchUserErr != nil {
+		return fetchUserErr
+	}
+
+	if user == nil {
+		logrus.Debugf("user %s is not a member of workspace", event.User)
+	}
+
+	channel, fetchChannelErr := service.channelService.FindOneBySlackId(event.Channel)
+	if fetchChannelErr != nil {
+		return fetchChannelErr
+	}
+
+	logrus.Infof("<%s>[%s - %s]: %s (%s)", channel.Name, user.Name, event.User, event.Text, event.TimeStamp)
+
+	message := channel.Message
+
+	if message == nil {
+		message = new(messages.Message)
+		message.ChannelId = channel.ID
+	}
+
+	var parseErr error
+	message.Content = event.Text
+	message.Timestamp, parseErr = strconv.ParseFloat(event.TimeStamp, 64)
+
+	if parseErr != nil {
+		return parseErr
+	}
+
+	updateRes, channelUpdateErr := service.channelService.UpdateOneBySlackId(event.Channel, *channel)
+	if channelUpdateErr != nil {
+		return channelUpdateErr
+	}
+
+	spew.Dump(updateRes)
+
 	return nil
 }
 
@@ -237,6 +279,9 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) Service {
+	service.userService = service.userService.WithTx(tx)
 	service.channelService = service.channelService.WithTx(tx)
+	service.messageService = service.messageService.WithTx(tx)
+
 	return service
 }

@@ -4,7 +4,7 @@ import "gorm.io/gorm"
 
 type Message struct {
 	gorm.Model
-	ChannelId uint   `json:"channelId"`
-	Content   string `json:"content"`
-	Timestamp string `json:"timestamp"`
+	ChannelId uint    `json:"channelId"`
+	Content   string  `json:"content"`
+	Timestamp float64 `json:"timestamp"`
 }

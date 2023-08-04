@@ -33,7 +33,7 @@ func New() (*fiber.App, error) {
 	messagesRepository := messages.NewMessageRepository(db)
 	messagesService := messages.NewMessageService(messagesRepository)
 	messagesHandler := messages.NewMessageHandler(messagesService)
-	slackbotService := slackbot.NewSlackService(config, channelsService)
+	slackbotService := slackbot.NewSlackService(config, service, channelsService, messagesService)
 	slackbotHandler := slackbot.NewSlackHandler(slackbotService)
 	cronService := cron.New(config, db, slackbotService, service, channelsService)
 	app := src.NewApp(config, db, handler, channelsHandler, messagesHandler, slackbotHandler, cronService)

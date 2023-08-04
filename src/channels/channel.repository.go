@@ -89,7 +89,7 @@ func (repository *channelRepository) FindOneBySlackId(slackId string) (*Channel,
 }
 
 func (repository *channelRepository) UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error) {
-	result := repository.DB.Where(&Channel{SlackId: slackId}).Updates(&channel)
+	result := repository.DB.Session(&gorm.Session{FullSaveAssociations: true}).Where(&Channel{SlackId: slackId}).Updates(&channel)
 	if result.Error != nil {
 		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
 	}

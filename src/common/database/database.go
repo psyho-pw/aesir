@@ -23,11 +23,16 @@ func NewDB(config *common.Config) *gorm.DB {
 		config.DB.MariadbDatabase,
 	)
 
-	connection, err := gorm.Open(mysql.New(mysql.Config{
-		DSN:                      dsn,
-		DefaultStringSize:        256,
-		DefaultDatetimePrecision: &datetimePrecision,
-	}), &gorm.Config{})
+	connection, err := gorm.Open(
+		mysql.New(mysql.Config{
+			DSN:                      dsn,
+			DefaultStringSize:        256,
+			DefaultDatetimePrecision: &datetimePrecision,
+		}),
+		&gorm.Config{
+			FullSaveAssociations: true,
+		},
+	)
 
 	if err != nil {
 		panic(err)
