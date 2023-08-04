@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
+//go:generate mockery --name Repository --case underscore --inpackage
 type Repository interface {
 	Create(user User) (*User, error)
 	CreateMany(users []User) ([]User, error)

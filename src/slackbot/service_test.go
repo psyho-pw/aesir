@@ -3,7 +3,11 @@ package slackbot
 import (
 	"aesir/src/channels"
 	"aesir/src/common"
+	"aesir/src/messages"
+	"aesir/src/users"
+	"fmt"
 	"github.com/brianvoe/gofakeit"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
@@ -18,12 +22,27 @@ import (
 type SlackbotSuit struct {
 	suite.Suite
 	config         *common.Config
+	userService    *users.MockService
 	channelService *channels.MockService
+	messageService *messages.MockService
 	service        Service
 	userId         string
 	teamId         string
 	channelId      string
 	log            *logrus.Logger
+}
+
+var mockChannel *channels.Channel = &channels.Channel{
+	SlackId:    gofakeit.UUID(),
+	Name:       gofakeit.City(),
+	Creator:    gofakeit.UUID(),
+	IsPrivate:  false,
+	IsArchived: true,
+	Message: &messages.Message{
+		ChannelId: 1,
+		Content:   gofakeit.Paragraph(1, 1, 10, "."),
+		Timestamp: gofakeit.Float64(),
+	},
 }
 
 func (suite *SlackbotSuit) SetupSuite() {
@@ -33,8 +52,16 @@ func (suite *SlackbotSuit) SetupSuite() {
 	}
 
 	suite.config = common.NewConfig()
+	suite.userService = users.NewMockService(suite.T())
 	suite.channelService = channels.NewMockService(suite.T())
-	suite.service = NewSlackService(suite.config, suite.channelService)
+	suite.messageService = messages.NewMockService(suite.T())
+
+	suite.service = NewSlackService(
+		suite.config,
+		suite.userService,
+		suite.channelService,
+		suite.messageService,
+	)
 	whoAmI, initializeErr := suite.service.WhoAmI()
 	suite.userId = whoAmI.UserID
 	suite.teamId = whoAmI.TeamID
@@ -60,7 +87,12 @@ func (suite *SlackbotSuit) SetupSuite() {
 func (suite *SlackbotSuit) BeforeTest(suiteName, testName string) {
 	suite.channelService.ExpectedCalls = nil
 	suite.channelService.Calls = nil
-	suite.service = NewSlackService(suite.config, suite.channelService)
+	//suite.service = NewSlackService(
+	//	suite.config,
+	//	suite.userService,
+	//	suite.channelService,
+	//	suite.messageService,
+	//)
 }
 
 //func (suite *SlackbotSuit) AfterTest(suiteName, testName string) {
@@ -123,46 +155,27 @@ func (suite *SlackbotSuit) TestEventMux() {
 		Type: gofakeit.Word(),
 		Data: memberJoinedEvt,
 	}
+
+	suite.userService.On("FindOneBySlackId", mock.Anything, mock.Anything).Return(new(users.User), nil)
 	suite.channelService.On("FindOneBySlackId", mock.Anything, mock.Anything).Return(new(channels.Channel), nil)
 	suite.channelService.On("UpdateOneBySlackId", mock.Anything, mock.Anything).Return(new(channels.Channel), nil)
 
-	err1 := suite.service.EventMux(*memberJoinInnerEvt)
+	err1 := suite.service.EventMux(memberJoinInnerEvt)
 
 	messageEvt := new(slackevents.MessageEvent)
+	messageEvt.TimeStamp = fmt.Sprintf("%f", gofakeit.Float64())
+
 	msgInnerEvt := &slackevents.EventsAPIInnerEvent{
 		Type: gofakeit.Word(),
 		Data: messageEvt,
 	}
-	err2 := suite.service.EventMux(*msgInnerEvt)
+	err2 := suite.service.EventMux(msgInnerEvt)
 
 	assert.Nil(suite.T(), err1)
-	suite.channelService.AssertNumberOfCalls(suite.T(), "FindOneBySlackId", 1)
-	assert.Nil(suite.T(), err2)
-}
-
-func (suite *SlackbotSuit) TestEvt() {
-	var memberJoinedEvt *slackevents.MemberJoinedChannelEvent
-	gofakeit.Struct(&memberJoinedEvt)
-	memberJoinedEvt.User = suite.userId
-	memberJoinedEvt.Channel = suite.channelId
-	memberJoinInnerEvt := &slackevents.EventsAPIInnerEvent{
-		Type: gofakeit.Word(),
-		Data: memberJoinedEvt,
-	}
-	suite.channelService.On("FindOneBySlackId", mock.Anything, mock.Anything).Return(new(channels.Channel), nil)
-	suite.channelService.On("UpdateOneBySlackId", mock.Anything, mock.Anything).Return(new(channels.Channel), nil)
-
-	err1 := suite.service.EventMux(*memberJoinInnerEvt)
-
-	messageEvt := new(slackevents.MessageEvent)
-	msgInnerEvt := &slackevents.EventsAPIInnerEvent{
-		Type: gofakeit.Word(),
-		Data: messageEvt,
-	}
-	err2 := suite.service.EventMux(*msgInnerEvt)
-
-	assert.Nil(suite.T(), err1)
-	suite.channelService.AssertNumberOfCalls(suite.T(), "FindOneBySlackId", 1)
+	suite.userService.AssertNumberOfCalls(suite.T(), "FindOneBySlackId", 1)
+	suite.channelService.AssertNumberOfCalls(suite.T(), "FindOneBySlackId", 2)
+	suite.channelService.AssertNumberOfCalls(suite.T(), "UpdateOneBySlackId", 2)
+	spew.Dump(err2)
 	assert.Nil(suite.T(), err2)
 }
 
