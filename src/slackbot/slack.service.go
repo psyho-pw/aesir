@@ -6,7 +6,6 @@ import (
 	"aesir/src/common/errors"
 	"aesir/src/messages"
 	"aesir/src/users"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
@@ -141,27 +140,23 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 
 	logrus.Infof("<%s>[%s - %s]: %s (%s)", channel.Name, user.Name, event.User, event.Text, event.TimeStamp)
 
-	message := channel.Message
-
-	if message == nil {
-		message = new(messages.Message)
+	if channel.Message == nil {
+		message := new(messages.Message)
 		message.ChannelId = channel.ID
+		channel.Message = message
 	}
 
 	var parseErr error
-	message.Content = event.Text
-	message.Timestamp, parseErr = strconv.ParseFloat(event.TimeStamp, 64)
-
+	channel.Message.Content = event.Text
+	channel.Message.Timestamp, parseErr = strconv.ParseFloat(event.TimeStamp, 64)
 	if parseErr != nil {
 		return parseErr
 	}
 
-	updateRes, channelUpdateErr := service.channelService.UpdateOneBySlackId(event.Channel, *channel)
+	_, channelUpdateErr := service.channelService.UpdateOneBySlackId(event.Channel, *channel)
 	if channelUpdateErr != nil {
 		return channelUpdateErr
 	}
-
-	spew.Dump(updateRes)
 
 	return nil
 }

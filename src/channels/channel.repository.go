@@ -77,7 +77,7 @@ func (repository *channelRepository) FindManyWithMessage() ([]Channel, error) {
 
 func (repository *channelRepository) FindOneBySlackId(slackId string) (*Channel, error) {
 	var channel Channel
-	result := repository.DB.Where(&Channel{SlackId: slackId}).Find(&channel)
+	result := repository.DB.Preload("Message").Where(&Channel{SlackId: slackId}).Find(&channel)
 	if result.Error != nil {
 		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
 	}
@@ -89,7 +89,7 @@ func (repository *channelRepository) FindOneBySlackId(slackId string) (*Channel,
 }
 
 func (repository *channelRepository) UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error) {
-	result := repository.DB.Session(&gorm.Session{FullSaveAssociations: true}).Where(&Channel{SlackId: slackId}).Updates(&channel)
+	result := repository.DB.Where(&Channel{SlackId: slackId}).Updates(&channel)
 	if result.Error != nil {
 		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
 	}
