@@ -6,6 +6,7 @@ import (
 	"aesir/src/common/errors"
 	"aesir/src/messages"
 	"aesir/src/users"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
@@ -21,6 +22,8 @@ import (
 
 type Service interface {
 	EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error
+	ManagerCommand(command slack.SlashCommand) error
+	//CommandMux(commandType string, interactionCallback slack.InteractionCallback) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -161,6 +164,16 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 	return nil
 }
 
+func (service *slackService) ManagerCommand(command slack.SlashCommand) error {
+	return nil
+}
+
+func (service *slackService) CommandMux(commandType string, interactionCallback slack.InteractionCallback) error {
+	logrus.Println(commandType)
+	spew.Dump(interactionCallback)
+	return nil
+}
+
 type WhoAmI struct {
 	TeamID string `json:"teamId"`
 	UserID string `json:"userId"`
@@ -248,16 +261,16 @@ func (service *slackService) FindLatestChannelMessage(channelId string) (*slack.
 		return nil, err
 	}
 
-	messages := getConversationHistoryResponse.Messages
-	if messages == nil {
+	messagesResponse := getConversationHistoryResponse.Messages
+	if messagesResponse == nil {
 		return nil, errors.New(fiber.StatusNotFound, "latest message not found")
 	}
 
-	return &messages[0], nil
+	return &messagesResponse[0], nil
 }
 
 func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) {
-	users, err := service.api.GetUsers(slack.GetUsersOptionTeamID(teamId))
+	usersResponse, err := service.api.GetUsers(slack.GetUsersOptionTeamID(teamId))
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +283,7 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 			i.ID != "USLACKBOT"
 	}
 
-	return funk.Filter(users, predicate).([]slack.User), nil
+	return funk.Filter(usersResponse, predicate).([]slack.User), nil
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) Service {
