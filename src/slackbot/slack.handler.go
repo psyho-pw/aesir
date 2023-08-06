@@ -3,7 +3,6 @@ package slackbot
 import (
 	_const "aesir/src/common/const"
 	"encoding/json"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/google/wire"
@@ -77,8 +76,6 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	}
 	logrus.Infof("%s command triggered", command.Command)
 
-	spew.Dump(command)
-
 	switch commandType {
 	case _const.CommandTypeManager:
 		logrus.Debug("manager")
@@ -86,16 +83,19 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 		if err != nil {
 			return nil
 		}
-		break
+
+		return c.Status(fiber.StatusOK).Send(nil)
+
 	case _const.CommandTypeThreshold:
 		logrus.Debug("threshold")
 		break
+
 	default:
 		logrus.Errorf("no matching command exists")
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	return c.SendStatus(fiber.StatusOK)
+	return nil
 }
 
 func (handler slackHandler) WhoAmI(c *fiber.Ctx) error {

@@ -165,6 +165,69 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 }
 
 func (service *slackService) ManagerCommand(command slack.SlashCommand) error {
+	var options []*slack.OptionBlockObject
+
+	usersData, fetchUserErr := service.userService.FindMany()
+	if fetchUserErr != nil {
+		return fetchUserErr
+	}
+
+	//var manager *users.User = nil
+
+	for _, user := range usersData {
+		//if user.IsManager == true {
+		//	manager = &user
+		//	continue
+		//}
+
+		option := slack.NewOptionBlockObject(
+			strconv.Itoa(int(user.ID)),
+			slack.NewTextBlockObject("plain_text", user.Name, false, false),
+			nil,
+		)
+		options = append(options, option)
+	}
+
+	titleText := slack.NewTextBlockObject("plain_text", "Aesir", false, false)
+	closeText := slack.NewTextBlockObject("plain_text", "Close", false, false)
+
+	headerText := slack.NewTextBlockObject("mrkdwn", "Designate a person to receive contact", false, false)
+	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+
+	selectPlaceholder := slack.NewTextBlockObject("plain_text", "select..", false, false)
+	selectElement := slack.NewOptionsSelectBlockElement(
+		"static_select",
+		selectPlaceholder,
+		"manager",
+		options...,
+	)
+	//selectElement.InitialOption = slack.NewOptionBlockObject(
+	//	strconv.Itoa(int(manager.ID)),
+	//	slack.NewTextBlockObject("plain_text", manager.Name, false, false),
+	//	nil,
+	//)
+
+	selectLabel := slack.NewTextBlockObject("plain_text", "Manager", false, false)
+	selectSection := slack.NewSectionBlock(
+		selectLabel,
+		nil,
+		slack.NewAccessory(selectElement))
+
+	blocks := slack.Blocks{
+		BlockSet: []slack.Block{headerSection, selectSection},
+	}
+
+	var modalRequest slack.ModalViewRequest
+	modalRequest.Type = slack.ViewType("modal")
+	modalRequest.Title = titleText
+	modalRequest.Close = closeText
+	modalRequest.Blocks = blocks
+
+	_, err := service.api.OpenView(command.TriggerID, modalRequest)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
