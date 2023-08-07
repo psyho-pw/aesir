@@ -3,6 +3,7 @@ package slackbot
 import (
 	"aesir/src/channels"
 	"aesir/src/common"
+	_const "aesir/src/common/const"
 	"aesir/src/common/errors"
 	"aesir/src/messages"
 	"aesir/src/users"
@@ -22,8 +23,8 @@ import (
 
 type Service interface {
 	EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error
-	ManagerCommand(command slack.SlashCommand) error
-	//CommandMux(commandType string, interactionCallback slack.InteractionCallback) error
+	OnManagerCommand(command slack.SlashCommand) error
+	OnSelect(callback slack.InteractionCallback) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -164,7 +165,7 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 	return nil
 }
 
-func (service *slackService) ManagerCommand(command slack.SlashCommand) error {
+func (service *slackService) OnManagerCommand(command slack.SlashCommand) error {
 	var options []*slack.OptionBlockObject
 
 	usersData, fetchUserErr := service.userService.FindMany()
@@ -172,13 +173,13 @@ func (service *slackService) ManagerCommand(command slack.SlashCommand) error {
 		return fetchUserErr
 	}
 
-	//var manager *users.User = nil
+	var managers []*users.User
 
 	for _, user := range usersData {
-		//if user.IsManager == true {
-		//	manager = &user
-		//	continue
-		//}
+		if user.IsManager == true {
+			managers = append(managers, &user)
+			continue
+		}
 
 		option := slack.NewOptionBlockObject(
 			strconv.Itoa(int(user.ID)),
@@ -195,23 +196,35 @@ func (service *slackService) ManagerCommand(command slack.SlashCommand) error {
 	headerSection := slack.NewSectionBlock(headerText, nil, nil)
 
 	selectPlaceholder := slack.NewTextBlockObject("plain_text", "select..", false, false)
-	selectElement := slack.NewOptionsSelectBlockElement(
-		"static_select",
+	multiSelectElement := slack.NewOptionsMultiSelectBlockElement(
+		"multi_static_select",
 		selectPlaceholder,
-		"manager",
+		_const.InteractionTypeOnSelect,
 		options...,
 	)
-	//selectElement.InitialOption = slack.NewOptionBlockObject(
-	//	strconv.Itoa(int(manager.ID)),
-	//	slack.NewTextBlockObject("plain_text", manager.Name, false, false),
-	//	nil,
-	//)
+
+	//set max selected item count
+	maxSelectedItems := _const.MaxSelectedItems
+	multiSelectElement.MaxSelectedItems = &maxSelectedItems
+
+	// set already selected managers as initial options
+	if len(managers) > 0 {
+		var initialOptions []*slack.OptionBlockObject
+		for _, manager := range managers {
+			option := slack.NewOptionBlockObject(
+				strconv.Itoa(int(manager.ID)),
+				slack.NewTextBlockObject("plain_text", manager.Name, false, false),
+				nil,
+			)
+			initialOptions = append(initialOptions, option)
+		}
+	}
 
 	selectLabel := slack.NewTextBlockObject("plain_text", "Manager", false, false)
 	selectSection := slack.NewSectionBlock(
 		selectLabel,
 		nil,
-		slack.NewAccessory(selectElement))
+		slack.NewAccessory(multiSelectElement))
 
 	blocks := slack.Blocks{
 		BlockSet: []slack.Block{headerSection, selectSection},
@@ -228,6 +241,10 @@ func (service *slackService) ManagerCommand(command slack.SlashCommand) error {
 		return err
 	}
 
+	return nil
+}
+
+func (service *slackService) OnSelect(callback slack.InteractionCallback) error {
 	return nil
 }
 

@@ -3,6 +3,7 @@ package slackbot
 import (
 	_const "aesir/src/common/const"
 	"encoding/json"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/google/wire"
@@ -10,11 +11,14 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"gorm.io/gorm"
+	"log"
+	"net/url"
 )
 
 type Handler interface {
 	EventMux(c *fiber.Ctx) error
 	CommandMux(c *fiber.Ctx) error
+	InteractionMux(c *fiber.Ctx) error
 	WhoAmI(c *fiber.Ctx) error
 	FindTeam(c *fiber.Ctx) error
 	FindChannels(c *fiber.Ctx) error
@@ -79,7 +83,7 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	switch commandType {
 	case _const.CommandTypeManager:
 		logrus.Debug("manager")
-		err := handler.service.WithTx(tx).ManagerCommand(command)
+		err := handler.service.WithTx(tx).OnManagerCommand(command)
 		if err != nil {
 			return nil
 		}
@@ -96,6 +100,37 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	}
 
 	return nil
+}
+
+func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
+	jsonStr, escapeErr := url.QueryUnescape(string(c.Body())[8:])
+	if escapeErr != nil {
+		log.Printf("[ERROR] Failed to unescape request body: %s", escapeErr)
+		return escapeErr
+	}
+
+	var message slack.InteractionCallback
+	if unmarshalErr := json.Unmarshal([]byte(jsonStr), &message); unmarshalErr != nil {
+		log.Printf("[ERROR] Failed to decode json message from slack: %s", jsonStr)
+		return unmarshalErr
+	}
+
+	//spew.Dump(message)
+	res2B, _ := json.Marshal(message)
+	fmt.Println(string(res2B))
+	logrus.Println(message.ActionID)
+	switch message.ActionID {
+	case _const.InteractionTypeOnSelect:
+		err := handler.service.WithTx(tx).OnSelect(message)
+		if err != nil {
+			return err
+		}
+		return c.Status(fiber.StatusOK).Send(nil)
+	default:
+		logrus.Errorf("no matching interaction handler exists")
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
 }
 
 func (handler slackHandler) WhoAmI(c *fiber.Ctx) error {
