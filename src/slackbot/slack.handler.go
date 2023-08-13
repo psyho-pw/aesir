@@ -122,7 +122,7 @@ func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
 
 	action := *message.ActionCallback.BlockActions[0]
 	switch action.ActionID {
-	case _const.InteractionTypeManager:
+	case _const.InteractionTypeManagerSelect:
 		err := handler.service.WithTx(tx).OnSelectChange(&action.SelectedOptions)
 		if err != nil {
 			return err

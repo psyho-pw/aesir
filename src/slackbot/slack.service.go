@@ -198,7 +198,7 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 	multiSelectElement := slack.NewOptionsMultiSelectBlockElement(
 		"multi_static_select",
 		selectPlaceholder,
-		_const.InteractionTypeManager,
+		_const.InteractionTypeManagerSelect,
 		options...,
 	)
 
