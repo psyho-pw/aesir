@@ -15,6 +15,7 @@ type Repository interface {
 	FindManyWithMessage() ([]Channel, error)
 	FindOneBySlackId(slackId string) (*Channel, error)
 	UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error)
+	UpdateThreshold(threshold int) error
 	DeleteOneBySlackId(slackId string) (*Channel, error)
 	WithTx(tx *gorm.DB) Repository
 }
@@ -98,6 +99,18 @@ func (repository *channelRepository) UpdateOneBySlackId(slackId string, channel 
 	}
 
 	return &channel, nil
+}
+
+func (repository *channelRepository) UpdateThreshold(threshold int) error {
+	result := repository.DB.Where("1 = 1").Updates(Channel{Threshold: threshold})
+	if result.Error != nil {
+		return errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return errors.New(fiber.StatusNotFound, "not affected")
+	}
+
+	return nil
 }
 
 func (repository *channelRepository) DeleteOneBySlackId(slackId string) (*Channel, error) {

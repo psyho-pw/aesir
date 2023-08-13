@@ -119,17 +119,24 @@ func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
 	}
 
 	action := *message.ActionCallback.BlockActions[0]
+	var err error
 	switch action.ActionID {
 	case _const.InteractionTypeManagerSelect:
-		err := handler.service.WithTx(tx).OnInteractionTypeManagerSelect(&action.SelectedOptions)
-		if err != nil {
-			return err
-		}
-		return c.Status(fiber.StatusOK).Send(nil)
+		err = handler.service.WithTx(tx).OnInteractionTypeManagerSelect(&action.SelectedOptions)
+		break
+	case _const.InteractionTypeThresholdSelect:
+		err = handler.service.WithTx(tx).OnInteractionTypeThresholdSelect(&action.SelectedOption)
+		break
 	default:
 		logrus.Errorf("no matching interaction handler exists")
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).Send(nil)
 }
 
 func (handler slackHandler) WhoAmI(c *fiber.Ctx) error {

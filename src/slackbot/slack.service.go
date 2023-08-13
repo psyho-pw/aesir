@@ -27,6 +27,7 @@ type Service interface {
 	OnManagerCommand(command slack.SlashCommand) error
 	OnThresholdCommand(command slack.SlashCommand) error
 	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
+	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -287,7 +288,7 @@ func (service *slackService) OnThresholdCommand(command slack.SlashCommand) erro
 
 	selectPlaceholder := slack.NewTextBlockObject("plain_text", "select..", false, false)
 	selectElement := slack.NewOptionsSelectBlockElement(
-		"multi_static_select",
+		"static_select",
 		selectPlaceholder,
 		_const.InteractionTypeThresholdSelect,
 		options...,
@@ -339,6 +340,16 @@ func (service *slackService) OnInteractionTypeManagerSelect(selectedOptions *[]s
 
 	userIds := funk.Map(*selectedOptions, predicate)
 	err := service.userService.UpdateManagers(userIds.([]int))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (service *slackService) OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error {
+	value, _ := strconv.Atoi(selectedOption.Value)
+	err := service.channelService.UpdateThreshold(value)
 	if err != nil {
 		return err
 	}
