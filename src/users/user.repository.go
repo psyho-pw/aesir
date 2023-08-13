@@ -4,6 +4,7 @@ import (
 	"aesir/src/common/errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -16,6 +17,8 @@ type Repository interface {
 	FindOneBySlackId(id string) (*User, error)
 	UpdateOne(id int, user User) (*User, error)
 	DeleteOne(id int) (*User, error)
+	SetManagersByUserIds(ids []int) error
+	RemoveManagersByUserIds(ids []int) error
 	WithTx(tx *gorm.DB) Repository
 }
 
@@ -100,6 +103,31 @@ func (repository *userRepository) UpdateOne(id int, user User) (*User, error) {
 		return nil, errors.New(fiber.StatusNotFound, "not affected")
 	}
 	return &user, nil
+}
+
+func (repository *userRepository) SetManagersByUserIds(ids []int) error {
+	result := repository.DB.Table("users").Where("1 = 1").Update("is_manager", gorm.Expr("CASE WHEN id IN ? THEN true ELSE false END", ids))
+
+	//result := repository.DB.Where("id In ?", ids).Updates(User{IsManager: true})
+	logrus.Printf("%+v", result.Statement)
+	if result.Error != nil {
+		return errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return errors.New(fiber.StatusNotFound, "not affected")
+	}
+	return nil
+}
+
+func (repository *userRepository) RemoveManagersByUserIds(ids []int) error {
+	result := repository.DB.Where("id NOT IN ?", ids).Updates(User{IsManager: false})
+	if result.Error != nil {
+		return errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return errors.New(fiber.StatusNotFound, "not affected")
+	}
+	return nil
 }
 
 func (repository *userRepository) DeleteOne(id int) (*User, error) {

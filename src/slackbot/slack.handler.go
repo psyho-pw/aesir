@@ -1,16 +1,24 @@
 package slackbot
 
 import (
+	_const "aesir/src/common/const"
 	"encoding/json"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
+	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"gorm.io/gorm"
+	"log"
+	"net/url"
 )
 
 type Handler interface {
 	EventMux(c *fiber.Ctx) error
+	CommandMux(c *fiber.Ctx) error
+	InteractionMux(c *fiber.Ctx) error
 	WhoAmI(c *fiber.Ctx) error
 	FindTeam(c *fiber.Ctx) error
 	FindChannels(c *fiber.Ctx) error
@@ -40,6 +48,7 @@ func (handler slackHandler) EventMux(c *fiber.Ctx) error {
 	switch eventsAPIEvent.Type {
 	case slackevents.URLVerification:
 		return c.Status(fiber.StatusOK).JSON(eventsAPIEvent.Data)
+
 	case slackevents.CallbackEvent:
 		innerEvent := eventsAPIEvent.InnerEvent
 		evtErr := handler.service.WithTx(tx).EventMux(&innerEvent)
@@ -47,14 +56,88 @@ func (handler slackHandler) EventMux(c *fiber.Ctx) error {
 			logrus.Errorf("%+v", evtErr)
 			return evtErr
 		}
-	case "bot_added":
-		logrus.Debug("bot added!!")
+
+		return c.SendStatus(fiber.StatusOK)
 
 	default:
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
+}
+
+func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
+	commandType := c.Params("commandType")
+
+	httpRequest, convertErr := adaptor.ConvertRequest(c, false)
+	if convertErr != nil {
+		return convertErr
+	}
+
+	command, parseEvtErr := slack.SlashCommandParse(httpRequest)
+	if parseEvtErr != nil {
+		logrus.Errorf("%+v", parseEvtErr)
+		return c.Status(fiber.StatusInternalServerError).SendString(parseEvtErr.Error())
+	}
+	logrus.Infof("%s command triggered", command.Command)
+
+	switch commandType {
+	case _const.CommandTypeManager:
+		logrus.Debug("manager")
+		err := handler.service.WithTx(tx).OnManagerCommand(command)
+		if err != nil {
+			return nil
+		}
+
+		return c.Status(fiber.StatusOK).Send(nil)
+
+	case _const.CommandTypeThreshold:
+		logrus.Debug("threshold")
+		break
+
+	default:
+		logrus.Errorf("no matching command exists")
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
 
 	return nil
+}
+
+func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
+	jsonStr, escapeErr := url.QueryUnescape(string(c.Body())[8:])
+	if escapeErr != nil {
+		log.Printf("[ERROR] Failed to unescape request body: %s", escapeErr)
+		return escapeErr
+	}
+
+	var message slack.InteractionCallback
+	if unmarshalErr := json.Unmarshal([]byte(jsonStr), &message); unmarshalErr != nil {
+		log.Printf("[ERROR] Failed to decode json message from slack: %s", jsonStr)
+		return unmarshalErr
+	}
+
+	//TODO: remove
+	res2B, _ := json.Marshal(message)
+	fmt.Println(string(res2B))
+
+	if message.Type != "block_actions" {
+		logrus.Errorf("no matching interaction handler exists")
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	action := *message.ActionCallback.BlockActions[0]
+
+	switch action.ActionID {
+	case _const.InteractionTypeOnSelect:
+		err := handler.service.WithTx(tx).OnSelectChange(&action.SelectedOptions)
+		if err != nil {
+			return err
+		}
+		return c.Status(fiber.StatusOK).Send(nil)
+	default:
+		logrus.Errorf("no matching interaction handler exists")
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
 }
 
 func (handler slackHandler) WhoAmI(c *fiber.Ctx) error {

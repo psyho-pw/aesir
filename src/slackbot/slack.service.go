@@ -3,9 +3,11 @@ package slackbot
 import (
 	"aesir/src/channels"
 	"aesir/src/common"
+	_const "aesir/src/common/const"
 	"aesir/src/common/errors"
 	"aesir/src/messages"
 	"aesir/src/users"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
@@ -21,6 +23,8 @@ import (
 
 type Service interface {
 	EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error
+	OnManagerCommand(command slack.SlashCommand) error
+	OnSelectChange(selectedOptions *[]slack.OptionBlockObject) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -161,6 +165,107 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 	return nil
 }
 
+func (service *slackService) OnManagerCommand(command slack.SlashCommand) error {
+	var options []*slack.OptionBlockObject
+
+	usersData, fetchUserErr := service.userService.FindMany()
+	if fetchUserErr != nil {
+		return fetchUserErr
+	}
+
+	var managers []users.User
+
+	for _, user := range usersData {
+		if user.IsManager == true {
+			managers = append(managers, user)
+		}
+
+		option := slack.NewOptionBlockObject(
+			strconv.Itoa(int(user.ID)),
+			slack.NewTextBlockObject("plain_text", user.Name, false, false),
+			nil,
+		)
+		options = append(options, option)
+	}
+
+	titleText := slack.NewTextBlockObject("plain_text", "Aesir", false, false)
+	closeText := slack.NewTextBlockObject("plain_text", "Close", false, false)
+
+	headerText := slack.NewTextBlockObject("mrkdwn", "Designate a person to receive contact", false, false)
+	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+
+	selectPlaceholder := slack.NewTextBlockObject("plain_text", "select..", false, false)
+	multiSelectElement := slack.NewOptionsMultiSelectBlockElement(
+		"multi_static_select",
+		selectPlaceholder,
+		_const.InteractionTypeOnSelect,
+		options...,
+	)
+
+	//set max selected item count
+	maxSelectedItems := _const.MaxSelectedItems
+	multiSelectElement.MaxSelectedItems = &maxSelectedItems
+
+	// set already selected managers as initial options
+	if len(managers) > 0 {
+		var initialOptions []*slack.OptionBlockObject
+		for _, manager := range managers {
+			option := slack.NewOptionBlockObject(
+				strconv.Itoa(int(manager.ID)),
+				slack.NewTextBlockObject("plain_text", manager.Name, false, false),
+				nil,
+			)
+			initialOptions = append(initialOptions, option)
+		}
+
+		multiSelectElement.InitialOptions = initialOptions
+	}
+
+	selectLabel := slack.NewTextBlockObject("plain_text", "Manager", false, false)
+	selectSection := slack.NewSectionBlock(
+		selectLabel,
+		nil,
+		slack.NewAccessory(multiSelectElement))
+
+	blocks := slack.Blocks{
+		BlockSet: []slack.Block{headerSection, selectSection},
+	}
+
+	var modalRequest slack.ModalViewRequest
+	modalRequest.Type = slack.ViewType("modal")
+	modalRequest.Title = titleText
+	modalRequest.Close = closeText
+	modalRequest.Blocks = blocks
+
+	_, err := service.api.OpenView(command.TriggerID, modalRequest)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (service *slackService) OnSelectChange(selectedOptions *[]slack.OptionBlockObject) error {
+	predicate := func(i slack.OptionBlockObject) int {
+		id, _ := strconv.Atoi(i.Value)
+		return id
+	}
+
+	userIds, _ := funk.Map(*selectedOptions, predicate).([]int)
+	err := service.userService.UpdateIsManager(userIds)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (service *slackService) CommandMux(commandType string, interactionCallback slack.InteractionCallback) error {
+	logrus.Println(commandType)
+	spew.Dump(interactionCallback)
+	return nil
+}
+
 type WhoAmI struct {
 	TeamID string `json:"teamId"`
 	UserID string `json:"userId"`
@@ -248,16 +353,16 @@ func (service *slackService) FindLatestChannelMessage(channelId string) (*slack.
 		return nil, err
 	}
 
-	messages := getConversationHistoryResponse.Messages
-	if messages == nil {
+	messagesResponse := getConversationHistoryResponse.Messages
+	if messagesResponse == nil {
 		return nil, errors.New(fiber.StatusNotFound, "latest message not found")
 	}
 
-	return &messages[0], nil
+	return &messagesResponse[0], nil
 }
 
 func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) {
-	users, err := service.api.GetUsers(slack.GetUsersOptionTeamID(teamId))
+	usersResponse, err := service.api.GetUsers(slack.GetUsersOptionTeamID(teamId))
 	if err != nil {
 		return nil, err
 	}
@@ -270,7 +375,7 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 			i.ID != "USLACKBOT"
 	}
 
-	return funk.Filter(users, predicate).([]slack.User), nil
+	return funk.Filter(usersResponse, predicate).([]slack.User), nil
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) Service {
