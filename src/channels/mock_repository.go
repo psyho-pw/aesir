@@ -90,6 +90,32 @@ func (_m *MockRepository) DeleteOneBySlackId(slackId string) (*Channel, error) {
 	return r0, r1
 }
 
+// FindFirstOne provides a mock function with given fields:
+func (_m *MockRepository) FindFirstOne() (*Channel, error) {
+	ret := _m.Called()
+
+	var r0 *Channel
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (*Channel, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() *Channel); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Channel)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // FindMany provides a mock function with given fields:
 func (_m *MockRepository) FindMany() ([]Channel, error) {
 	ret := _m.Called()
@@ -192,6 +218,20 @@ func (_m *MockRepository) UpdateOneBySlackId(slackId string, channel Channel) (*
 	}
 
 	return r0, r1
+}
+
+// UpdateThreshold provides a mock function with given fields: threshold
+func (_m *MockRepository) UpdateThreshold(threshold int) error {
+	ret := _m.Called(threshold)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(int) error); ok {
+		r0 = rf(threshold)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // WithTx provides a mock function with given fields: tx
