@@ -116,13 +116,20 @@ func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
 		return unmarshalErr
 	}
 
-	//spew.Dump(message)
+	//TODO: remove
 	res2B, _ := json.Marshal(message)
 	fmt.Println(string(res2B))
-	logrus.Println(message.ActionID)
-	switch message.ActionID {
+
+	if message.Type != "block_actions" {
+		logrus.Errorf("no matching interaction handler exists")
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	action := *message.ActionCallback.BlockActions[0]
+
+	switch action.ActionID {
 	case _const.InteractionTypeOnSelect:
-		err := handler.service.WithTx(tx).OnSelect(message)
+		err := handler.service.WithTx(tx).OnSelectChange(&action.SelectedOptions)
 		if err != nil {
 			return err
 		}

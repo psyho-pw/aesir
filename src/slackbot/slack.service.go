@@ -24,7 +24,7 @@ import (
 type Service interface {
 	EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error
 	OnManagerCommand(command slack.SlashCommand) error
-	OnSelect(callback slack.InteractionCallback) error
+	OnSelectChange(selectedOptions *[]slack.OptionBlockObject) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -173,12 +173,11 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 		return fetchUserErr
 	}
 
-	var managers []*users.User
+	var managers []users.User
 
 	for _, user := range usersData {
 		if user.IsManager == true {
-			managers = append(managers, &user)
-			continue
+			managers = append(managers, user)
 		}
 
 		option := slack.NewOptionBlockObject(
@@ -218,6 +217,8 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 			)
 			initialOptions = append(initialOptions, option)
 		}
+
+		multiSelectElement.InitialOptions = initialOptions
 	}
 
 	selectLabel := slack.NewTextBlockObject("plain_text", "Manager", false, false)
@@ -244,7 +245,18 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 	return nil
 }
 
-func (service *slackService) OnSelect(callback slack.InteractionCallback) error {
+func (service *slackService) OnSelectChange(selectedOptions *[]slack.OptionBlockObject) error {
+	predicate := func(i slack.OptionBlockObject) int {
+		id, _ := strconv.Atoi(i.Value)
+		return id
+	}
+
+	userIds, _ := funk.Map(*selectedOptions, predicate).([]int)
+	err := service.userService.UpdateIsManager(userIds)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
