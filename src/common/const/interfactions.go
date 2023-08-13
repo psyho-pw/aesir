@@ -1,5 +1,6 @@
 package _const
 
 const (
-	InteractionTypeManagerSelect = "manager-select"
+	InteractionTypeManagerSelect   = "manager-select"
+	InteractionTypeThresholdSelect = "threshold-select"
 )
