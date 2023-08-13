@@ -13,7 +13,7 @@ type Service interface {
 	FindOne(id int) (*User, error)
 	FindOneBySlackId(id string) (*User, error)
 	UpdateOne(id int, user *User) (*User, error)
-	UpdateIsManager(ids []int) error
+	UpdateManagers(ids []int) error
 	DeleteOne(id int) (*User, error)
 	WithTx(tx *gorm.DB) Service
 }
@@ -53,14 +53,10 @@ func (service *userService) UpdateOne(id int, user *User) (*User, error) {
 	return service.repository.UpdateOne(id, *user)
 }
 
-func (service *userService) UpdateIsManager(ids []int) error {
-	setMangersErr := service.repository.SetManagersByUserIds(ids)
-	if setMangersErr != nil {
-		return setMangersErr
-	}
-	removeManagersErr := service.repository.RemoveManagersByUserIds(ids)
-	if removeManagersErr != nil {
-		return removeManagersErr
+func (service *userService) UpdateManagers(ids []int) error {
+	updateMangersErr := service.repository.UpdateManagersByUserIds(ids)
+	if updateMangersErr != nil {
+		return updateMangersErr
 	}
 
 	return nil

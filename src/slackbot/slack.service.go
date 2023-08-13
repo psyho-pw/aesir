@@ -198,7 +198,7 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 	multiSelectElement := slack.NewOptionsMultiSelectBlockElement(
 		"multi_static_select",
 		selectPlaceholder,
-		_const.InteractionTypeOnSelect,
+		_const.InteractionTypeManager,
 		options...,
 	)
 
@@ -251,8 +251,8 @@ func (service *slackService) OnSelectChange(selectedOptions *[]slack.OptionBlock
 		return id
 	}
 
-	userIds, _ := funk.Map(*selectedOptions, predicate).([]int)
-	err := service.userService.UpdateIsManager(userIds)
+	userIds := funk.Map(*selectedOptions, predicate)
+	err := service.userService.UpdateManagers(userIds.([]int))
 	if err != nil {
 		return err
 	}

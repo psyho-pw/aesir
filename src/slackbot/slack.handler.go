@@ -3,7 +3,6 @@ package slackbot
 import (
 	_const "aesir/src/common/const"
 	"encoding/json"
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 	"github.com/google/wire"
@@ -116,19 +115,14 @@ func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
 		return unmarshalErr
 	}
 
-	//TODO: remove
-	res2B, _ := json.Marshal(message)
-	fmt.Println(string(res2B))
-
 	if message.Type != "block_actions" {
 		logrus.Errorf("no matching interaction handler exists")
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
 	action := *message.ActionCallback.BlockActions[0]
-
 	switch action.ActionID {
-	case _const.InteractionTypeOnSelect:
+	case _const.InteractionTypeManager:
 		err := handler.service.WithTx(tx).OnSelectChange(&action.SelectedOptions)
 		if err != nil {
 			return err

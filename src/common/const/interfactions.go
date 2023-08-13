@@ -1,5 +1,5 @@
 package _const
 
 const (
-	InteractionTypeOnSelect = "manager"
+	InteractionTypeManager = "manager"
 )
