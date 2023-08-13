@@ -14,6 +14,7 @@ type Repository interface {
 	FindMany() ([]Channel, error)
 	FindManyWithMessage() ([]Channel, error)
 	FindOneBySlackId(slackId string) (*Channel, error)
+	FindFirstOne() (*Channel, error)
 	UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error)
 	UpdateThreshold(threshold int) error
 	DeleteOneBySlackId(slackId string) (*Channel, error)
@@ -79,6 +80,19 @@ func (repository *channelRepository) FindManyWithMessage() ([]Channel, error) {
 func (repository *channelRepository) FindOneBySlackId(slackId string) (*Channel, error) {
 	var channel Channel
 	result := repository.DB.Preload("Message").Where(&Channel{SlackId: slackId}).Find(&channel)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return nil, nil
+	}
+
+	return &channel, nil
+}
+
+func (repository *channelRepository) FindFirstOne() (*Channel, error) {
+	var channel Channel
+	result := repository.DB.First(&channel)
 	if result.Error != nil {
 		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
 	}

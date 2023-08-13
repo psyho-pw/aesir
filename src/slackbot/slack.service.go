@@ -176,14 +176,14 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 ********** Command related services
  */
 
-func (service *slackService) makeModalElements(selectElement interface{}) (*slack.TextBlockObject, *slack.TextBlockObject, *slack.Blocks, error) {
+func (service *slackService) makeModalElements(headerTxt string, selectElement interface{}) (*slack.TextBlockObject, *slack.TextBlockObject, *slack.Blocks, error) {
 	ref := reflect.ValueOf(selectElement).Elem()
 	typeofRef := ref.Type()
 
 	titleText := slack.NewTextBlockObject("plain_text", "Aesir", false, false)
 	closeText := slack.NewTextBlockObject("plain_text", "Close", false, false)
 
-	headerText := slack.NewTextBlockObject("mrkdwn", "Designate a person to receive contact", false, false)
+	headerText := slack.NewTextBlockObject("mrkdwn", headerTxt, false, false)
 	headerSection := slack.NewSectionBlock(headerText, nil, nil)
 
 	selectLabel := slack.NewTextBlockObject("plain_text", "Threshold", false, false)
@@ -255,7 +255,7 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 		multiSelectElement.InitialOptions = initialOptions
 	}
 
-	titleText, closeText, blocks, makeModalErr := service.makeModalElements(multiSelectElement)
+	titleText, closeText, blocks, makeModalErr := service.makeModalElements("Designate a person to receive contact", multiSelectElement)
 	if makeModalErr != nil {
 		return makeModalErr
 	}
@@ -294,22 +294,20 @@ func (service *slackService) OnThresholdCommand(command slack.SlashCommand) erro
 		options...,
 	)
 
-	//TODO set already selected threshold as initial option
-	//if len(managers) > 0 {
-	//	var initialOptions []*slack.OptionBlockObject
-	//	for _, manager := range managers {
-	//		option := slack.NewOptionBlockObject(
-	//			strconv.Itoa(int(manager.ID)),
-	//			slack.NewTextBlockObject("plain_text", manager.Name, false, false),
-	//			nil,
-	//		)
-	//		initialOptions = append(initialOptions, option)
-	//	}
-	//
-	//	multiSelectElement.InitialOptions = initialOptions
-	//}
+	//set already selected threshold as initial option
+	channel, findFirstErr := service.channelService.FindFirstOne()
+	if findFirstErr != nil {
+		return nil
+	}
 
-	titleText, closeText, blocks, makeModalErr := service.makeModalElements(selectElement)
+	initialOption := slack.NewOptionBlockObject(
+		strconv.Itoa(channel.Threshold),
+		slack.NewTextBlockObject("plain_text", fmt.Sprintf("%.2d day (s)", channel.Threshold), false, false),
+		nil,
+	)
+	selectElement.InitialOption = initialOption
+
+	titleText, closeText, blocks, makeModalErr := service.makeModalElements("Set a threshold time value before dispatching a notification", selectElement)
 	if makeModalErr != nil {
 		return makeModalErr
 	}
