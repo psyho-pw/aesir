@@ -2,7 +2,6 @@ package middlewares
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
 	"net/url"
@@ -29,7 +28,6 @@ func printBody(params []byte) {
 
 	var prettyBodyParams interface{}
 
-	logrus.Infof("%+v", fmt.Sprintf("%s", params))
 	err := json.Unmarshal(params, &prettyBodyParams)
 	if err != nil {
 		values, parseErr := url.ParseQuery(string(params))
