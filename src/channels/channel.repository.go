@@ -14,7 +14,9 @@ type Repository interface {
 	FindMany() ([]Channel, error)
 	FindManyWithMessage() ([]Channel, error)
 	FindOneBySlackId(slackId string) (*Channel, error)
+	FindFirstOne() (*Channel, error)
 	UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error)
+	UpdateThreshold(threshold int) error
 	DeleteOneBySlackId(slackId string) (*Channel, error)
 	WithTx(tx *gorm.DB) Repository
 }
@@ -88,6 +90,19 @@ func (repository *channelRepository) FindOneBySlackId(slackId string) (*Channel,
 	return &channel, nil
 }
 
+func (repository *channelRepository) FindFirstOne() (*Channel, error) {
+	var channel Channel
+	result := repository.DB.First(&channel)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return nil, nil
+	}
+
+	return &channel, nil
+}
+
 func (repository *channelRepository) UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error) {
 	result := repository.DB.Where(&Channel{SlackId: slackId}).Updates(&channel)
 	if result.Error != nil {
@@ -98,6 +113,18 @@ func (repository *channelRepository) UpdateOneBySlackId(slackId string, channel 
 	}
 
 	return &channel, nil
+}
+
+func (repository *channelRepository) UpdateThreshold(threshold int) error {
+	result := repository.DB.Where("1 = 1").Updates(Channel{Threshold: threshold})
+	if result.Error != nil {
+		return errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return errors.New(fiber.StatusNotFound, "not affected")
+	}
+
+	return nil
 }
 
 func (repository *channelRepository) DeleteOneBySlackId(slackId string) (*Channel, error) {

@@ -5,9 +5,10 @@ import (
 	"aesir/src/common"
 	_const "aesir/src/common/const"
 	"aesir/src/common/errors"
+	"aesir/src/common/utils"
 	"aesir/src/messages"
 	"aesir/src/users"
-	"github.com/davecgh/go-spew/spew"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
@@ -24,7 +25,9 @@ import (
 type Service interface {
 	EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error
 	OnManagerCommand(command slack.SlashCommand) error
-	OnSelectChange(selectedOptions *[]slack.OptionBlockObject) error
+	OnThresholdCommand(command slack.SlashCommand) error
+	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
+	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -54,6 +57,10 @@ func NewSlackService(config *common.Config, userService users.Service, channelSe
 }
 
 var SetService = wire.NewSet(NewSlackService)
+
+/*
+********** Event related services
+ */
 
 func (service *slackService) EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error {
 	switch evt := innerEvent.Data.(type) {
@@ -165,6 +172,39 @@ func (service *slackService) handleMessageEvent(event *slackevents.MessageEvent)
 	return nil
 }
 
+/*
+********** Command related services
+ */
+
+func (service *slackService) makeModalElements(headerTxt string, selectElement interface{}) (*slack.TextBlockObject, *slack.TextBlockObject, *slack.Blocks, error) {
+	ref := reflect.ValueOf(selectElement).Elem()
+	typeofRef := ref.Type()
+
+	titleText := slack.NewTextBlockObject("plain_text", "Aesir", false, false)
+	closeText := slack.NewTextBlockObject("plain_text", "Close", false, false)
+
+	headerText := slack.NewTextBlockObject("mrkdwn", headerTxt, false, false)
+	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+
+	selectLabel := slack.NewTextBlockObject("plain_text", "Threshold", false, false)
+
+	var selectSection *slack.SectionBlock
+	switch typeofRef.Name() {
+	case "SelectBlockElement":
+		selectSection = slack.NewSectionBlock(selectLabel, nil, slack.NewAccessory(selectElement.(*slack.SelectBlockElement)))
+		break
+	case "MultiSelectBlockElement":
+		selectSection = slack.NewSectionBlock(selectLabel, nil, slack.NewAccessory(selectElement.(*slack.MultiSelectBlockElement)))
+		break
+	default:
+		return nil, nil, nil, errors.New(fiber.StatusInternalServerError, "no matching type")
+	}
+
+	blocks := slack.Blocks{BlockSet: []slack.Block{headerSection, selectSection}}
+
+	return titleText, closeText, &blocks, nil
+}
+
 func (service *slackService) OnManagerCommand(command slack.SlashCommand) error {
 	var options []*slack.OptionBlockObject
 
@@ -188,17 +228,11 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 		options = append(options, option)
 	}
 
-	titleText := slack.NewTextBlockObject("plain_text", "Aesir", false, false)
-	closeText := slack.NewTextBlockObject("plain_text", "Close", false, false)
-
-	headerText := slack.NewTextBlockObject("mrkdwn", "Designate a person to receive contact", false, false)
-	headerSection := slack.NewSectionBlock(headerText, nil, nil)
-
 	selectPlaceholder := slack.NewTextBlockObject("plain_text", "select..", false, false)
 	multiSelectElement := slack.NewOptionsMultiSelectBlockElement(
 		"multi_static_select",
 		selectPlaceholder,
-		_const.InteractionTypeManager,
+		_const.InteractionTypeManagerSelect,
 		options...,
 	)
 
@@ -221,21 +255,16 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 		multiSelectElement.InitialOptions = initialOptions
 	}
 
-	selectLabel := slack.NewTextBlockObject("plain_text", "Manager", false, false)
-	selectSection := slack.NewSectionBlock(
-		selectLabel,
-		nil,
-		slack.NewAccessory(multiSelectElement))
-
-	blocks := slack.Blocks{
-		BlockSet: []slack.Block{headerSection, selectSection},
+	titleText, closeText, blocks, makeModalErr := service.makeModalElements("Designate a person to receive contact", multiSelectElement)
+	if makeModalErr != nil {
+		return makeModalErr
 	}
 
 	var modalRequest slack.ModalViewRequest
 	modalRequest.Type = slack.ViewType("modal")
 	modalRequest.Title = titleText
 	modalRequest.Close = closeText
-	modalRequest.Blocks = blocks
+	modalRequest.Blocks = *blocks
 
 	_, err := service.api.OpenView(command.TriggerID, modalRequest)
 	if err != nil {
@@ -245,7 +274,63 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 	return nil
 }
 
-func (service *slackService) OnSelectChange(selectedOptions *[]slack.OptionBlockObject) error {
+func (service *slackService) OnThresholdCommand(command slack.SlashCommand) error {
+	predicate := func(i int) *slack.OptionBlockObject {
+		option := slack.NewOptionBlockObject(
+			strconv.Itoa(i),
+			slack.NewTextBlockObject("plain_text", fmt.Sprintf("%.2d day (s)", i), false, false),
+			nil,
+		)
+
+		return option
+	}
+	options := funk.Map(utils.MakeRange(1, 10), predicate).([]*slack.OptionBlockObject)
+
+	selectPlaceholder := slack.NewTextBlockObject("plain_text", "select..", false, false)
+	selectElement := slack.NewOptionsSelectBlockElement(
+		"static_select",
+		selectPlaceholder,
+		_const.InteractionTypeThresholdSelect,
+		options...,
+	)
+
+	//set already selected threshold as initial option
+	channel, findFirstErr := service.channelService.FindFirstOne()
+	if findFirstErr != nil {
+		return nil
+	}
+
+	initialOption := slack.NewOptionBlockObject(
+		strconv.Itoa(channel.Threshold),
+		slack.NewTextBlockObject("plain_text", fmt.Sprintf("%.2d day (s)", channel.Threshold), false, false),
+		nil,
+	)
+	selectElement.InitialOption = initialOption
+
+	titleText, closeText, blocks, makeModalErr := service.makeModalElements("Set a threshold time value before dispatching a notification", selectElement)
+	if makeModalErr != nil {
+		return makeModalErr
+	}
+
+	var modalRequest slack.ModalViewRequest
+	modalRequest.Type = slack.ViewType("modal")
+	modalRequest.Title = titleText
+	modalRequest.Close = closeText
+	modalRequest.Blocks = *blocks
+
+	_, err := service.api.OpenView(command.TriggerID, modalRequest)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+/*
+********** Interaction related services
+ */
+
+func (service *slackService) OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error {
 	predicate := func(i slack.OptionBlockObject) int {
 		id, _ := strconv.Atoi(i.Value)
 		return id
@@ -260,11 +345,19 @@ func (service *slackService) OnSelectChange(selectedOptions *[]slack.OptionBlock
 	return nil
 }
 
-func (service *slackService) CommandMux(commandType string, interactionCallback slack.InteractionCallback) error {
-	logrus.Println(commandType)
-	spew.Dump(interactionCallback)
+func (service *slackService) OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error {
+	value, _ := strconv.Atoi(selectedOption.Value)
+	err := service.channelService.UpdateThreshold(value)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
+
+/*
+********** Slack API related services
+ */
 
 type WhoAmI struct {
 	TeamID string `json:"teamId"`

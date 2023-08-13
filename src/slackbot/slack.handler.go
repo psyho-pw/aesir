@@ -79,26 +79,24 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	}
 	logrus.Infof("%s command triggered", command.Command)
 
+	var err error
 	switch commandType {
 	case _const.CommandTypeManager:
-		logrus.Debug("manager")
-		err := handler.service.WithTx(tx).OnManagerCommand(command)
-		if err != nil {
-			return nil
-		}
-
-		return c.Status(fiber.StatusOK).Send(nil)
-
-	case _const.CommandTypeThreshold:
-		logrus.Debug("threshold")
+		err = handler.service.WithTx(tx).OnManagerCommand(command)
 		break
-
+	case _const.CommandTypeThreshold:
+		err = handler.service.WithTx(tx).OnThresholdCommand(command)
+		break
 	default:
 		logrus.Errorf("no matching command exists")
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
-	return nil
+	if err != nil {
+		return nil
+	}
+
+	return c.Status(fiber.StatusOK).Send(nil)
 }
 
 func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
@@ -121,17 +119,24 @@ func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
 	}
 
 	action := *message.ActionCallback.BlockActions[0]
+	var err error
 	switch action.ActionID {
-	case _const.InteractionTypeManager:
-		err := handler.service.WithTx(tx).OnSelectChange(&action.SelectedOptions)
-		if err != nil {
-			return err
-		}
-		return c.Status(fiber.StatusOK).Send(nil)
+	case _const.InteractionTypeManagerSelect:
+		err = handler.service.WithTx(tx).OnInteractionTypeManagerSelect(&action.SelectedOptions)
+		break
+	case _const.InteractionTypeThresholdSelect:
+		err = handler.service.WithTx(tx).OnInteractionTypeThresholdSelect(&action.SelectedOption)
+		break
 	default:
 		logrus.Errorf("no matching interaction handler exists")
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).Send(nil)
 }
 
 func (handler slackHandler) WhoAmI(c *fiber.Ctx) error {
