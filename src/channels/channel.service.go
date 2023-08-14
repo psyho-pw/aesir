@@ -11,6 +11,7 @@ type Service interface {
 	CreateMany(channels []Channel) ([]Channel, error)
 	FindMany() ([]Channel, error)
 	FindManyWithMessage() ([]Channel, error)
+	FindManyByThreshold(threshold int) ([]Channel, error)
 	FindOneBySlackId(slackId string) (*Channel, error)
 	FindFirstOne() (*Channel, error)
 	UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error)
@@ -43,6 +44,10 @@ func (service *channelService) FindMany() ([]Channel, error) {
 
 func (service *channelService) FindManyWithMessage() ([]Channel, error) {
 	return service.repository.FindManyWithMessage()
+}
+
+func (service *channelService) FindManyByThreshold(threshold int) ([]Channel, error) {
+	return service.repository.FindManyByThreshold(threshold)
 }
 
 func (service *channelService) FindOneBySlackId(slackId string) (*Channel, error) {

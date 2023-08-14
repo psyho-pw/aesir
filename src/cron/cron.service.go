@@ -6,10 +6,13 @@ import (
 	"aesir/src/common/utils"
 	"aesir/src/slackbot"
 	"aesir/src/users"
+	"encoding/json"
 	"github.com/go-co-op/gocron"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
+	"io"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -53,6 +56,39 @@ var SetService = wire.NewSet(New)
 
 func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func() {
 	return func() {
+		now := time.Now()
+		if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+			logrus.Infof("It's weekend!")
+			return
+		}
+
+		uri, uriBuildErr := service.config.OpenApi.GetUrl(now)
+		if uriBuildErr != nil {
+			panic(uri)
+		}
+
+		logrus.Printf("%s", uri)
+		response, openApiErr := http.Get(uri)
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(response.Body)
+
+		if openApiErr != nil {
+			panic(openApiErr)
+		}
+
+		data, readErr := io.ReadAll(response.Body)
+		if readErr != nil {
+			panic(readErr)
+		}
+		var openApiResponse OpenApiResponse
+		if unMarshalErr := json.Unmarshal(data, &openApiResponse); unMarshalErr != nil {
+			panic(unMarshalErr)
+		}
+
+		utils.PrettyPrint(openApiResponse)
+		//TODO: check holiday
+
 		tx := service.db.Begin()
 		logrus.Info("Transaction start")
 
@@ -161,14 +197,34 @@ func (service *cronService) channelTask(tx *gorm.DB) error {
 	return nil
 }
 
-func (service *cronService) Start() error {
-	if service.config.AppEnv != "production" {
-		return nil
+func (service *cronService) notificationTask(tx *gorm.DB) error {
+	defer utils.Timer()()
+	logrus.Infof("running notificationTask")
+	channel, findFirstErr := service.channelService.FindFirstOne()
+	if findFirstErr != nil {
+		return findFirstErr
 	}
+
+	targetChannels, err := service.channelService.FindManyByThreshold(channel.Threshold)
+	if err != nil {
+		return err
+	}
+
+	utils.PrettyPrint(targetChannels)
+	//spew.Dump(targetChannels)
+
+	return nil
+}
+
+func (service *cronService) Start() error {
+	//if service.config.AppEnv != "production" {
+	//	return nil
+	//}
 	scheduler := gocron.NewScheduler(time.Local)
 	//_, _ = scheduler.CronWithSeconds("0 * * * * *").Do(service.transactionWrapper(service.userTask))
-	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.userTask))
-	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.channelTask))
+	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.userTask))
+	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.channelTask))
+	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.notificationTask))
 	scheduler.StartAsync()
 
 	return nil

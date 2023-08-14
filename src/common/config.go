@@ -2,6 +2,7 @@ package common
 
 import (
 	"aesir/src/common/middlewares"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/utils"
@@ -9,6 +10,7 @@ import (
 	"github.com/mattn/go-colorable"
 	"github.com/natefinch/lumberjack"
 	log "github.com/sirupsen/logrus"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -29,13 +31,34 @@ type SlackConfig struct {
 	TeamId   string
 }
 
+type OpenApiConfig struct {
+	Token      string
+	BaseUrl    string
+	Resource   string
+	BaseParams url.Values
+}
+
+func (openApiConfig *OpenApiConfig) GetUrl(now time.Time) (string, error) {
+	params := openApiConfig.BaseParams
+	params.Add("solYear", strconv.Itoa(now.Year()))
+	params.Add("solMonth", fmt.Sprintf("%.2d", now.Month()))
+
+	uri, _ := url.ParseRequestURI(openApiConfig.BaseUrl)
+	uri.Path = openApiConfig.Resource
+	uri.RawQuery = params.Encode()
+	uriStr := fmt.Sprintf("%v", uri)
+
+	return uriStr, nil
+}
+
 type Config struct {
-	AppEnv string
-	Port   int
-	Fiber  fiber.Config
-	DB     DB
-	Csrf   csrf.Config
-	Slack  SlackConfig
+	AppEnv  string
+	Port    int
+	Fiber   fiber.Config
+	DB      DB
+	Csrf    csrf.Config
+	Slack   SlackConfig
+	OpenApi OpenApiConfig
 }
 
 func fiberConfig() fiber.Config {
@@ -56,35 +79,6 @@ func dbConfig() DB {
 		MariadbPassword: os.Getenv("MARIADB_PASSWORD"),
 		MariadbDatabase: os.Getenv("MARIADB_DATABASE"),
 		MariadbPort:     os.Getenv("MARIADB_PORT"),
-	}
-}
-
-func slackConfig() SlackConfig {
-	appToken := os.Getenv("SLACK_APP_TOKEN")
-	botToken := os.Getenv("SLACK_BOT_TOKEN")
-
-	if appToken == "" {
-		log.Error("Missing slack app token")
-		os.Exit(1)
-	}
-
-	if !strings.HasPrefix(appToken, "xapp-") {
-		log.Error("app token must have the prefix \"xapp-\"")
-	}
-
-	if botToken == "" {
-		log.Error("Missing slack bot token")
-		os.Exit(1)
-	}
-
-	if !strings.HasPrefix(botToken, "xoxb-") {
-		log.Error("bot token must have the prefix \"xoxb-\"")
-	}
-
-	return SlackConfig{
-		AppToken: appToken,
-		BotToken: botToken,
-		TeamId:   os.Getenv("TEAM_ID"),
 	}
 }
 
@@ -148,6 +142,51 @@ func csrfConfig() csrf.Config {
 	}
 }
 
+func slackConfig() SlackConfig {
+	appToken := os.Getenv("SLACK_APP_TOKEN")
+	botToken := os.Getenv("SLACK_BOT_TOKEN")
+
+	if appToken == "" {
+		log.Error("Missing slack app token")
+		os.Exit(1)
+	}
+
+	if !strings.HasPrefix(appToken, "xapp-") {
+		log.Error("app token must have the prefix \"xapp-\"")
+	}
+
+	if botToken == "" {
+		log.Error("Missing slack bot token")
+		os.Exit(1)
+	}
+
+	if !strings.HasPrefix(botToken, "xoxb-") {
+		log.Error("bot token must have the prefix \"xoxb-\"")
+	}
+
+	return SlackConfig{
+		AppToken: appToken,
+		BotToken: botToken,
+		TeamId:   os.Getenv("TEAM_ID"),
+	}
+}
+
+func openApiConfig() OpenApiConfig {
+	token := os.Getenv("OPENAPI_TOKEN")
+	params := url.Values{}
+	params.Add("ServiceKey", token)
+	params.Add("_type", "json")
+	params.Add("pageNo", "1")
+	params.Add("numOfRows", "31")
+
+	return OpenApiConfig{
+		Token:      token,
+		BaseUrl:    os.Getenv("OPENAPI_BASEURL"),
+		Resource:   os.Getenv("OPENAPI_RESOURCE_RESTDAY"),
+		BaseParams: params,
+	}
+}
+
 func NewConfig() *Config {
 	port, parseErr := strconv.Atoi(os.Getenv("PORT"))
 	if parseErr != nil {
@@ -157,12 +196,13 @@ func NewConfig() *Config {
 	loggerConfig()
 
 	var config = Config{
-		AppEnv: os.Getenv("APP_ENV"),
-		Port:   port,
-		Fiber:  fiberConfig(),
-		DB:     dbConfig(),
-		Csrf:   csrfConfig(),
-		Slack:  slackConfig(),
+		AppEnv:  os.Getenv("APP_ENV"),
+		Port:    port,
+		Fiber:   fiberConfig(),
+		DB:      dbConfig(),
+		Csrf:    csrfConfig(),
+		Slack:   slackConfig(),
+		OpenApi: openApiConfig(),
 	}
 
 	return &config

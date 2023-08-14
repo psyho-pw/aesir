@@ -13,6 +13,7 @@ type Repository interface {
 	CreateMany(channels []Channel) ([]Channel, error)
 	FindMany() ([]Channel, error)
 	FindManyWithMessage() ([]Channel, error)
+	FindManyByThreshold(threshold int) ([]Channel, error)
 	FindOneBySlackId(slackId string) (*Channel, error)
 	FindFirstOne() (*Channel, error)
 	UpdateOneBySlackId(slackId string, channel Channel) (*Channel, error)
@@ -66,13 +67,24 @@ func (repository *channelRepository) FindMany() ([]Channel, error) {
 
 func (repository *channelRepository) FindManyWithMessage() ([]Channel, error) {
 	var channels []Channel
-	test := repository.DB.Preload("Message").Find(&channels)
-	println(test)
-	println(channels)
+	result := repository.DB.Preload("Message").Find(&channels)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusInternalServerError, result.Error.Error())
+	}
 
 	//if err := repository.DB.Select("*").Joins("left join messages on channel.id = messages.channelId").Scan(&channels).Error; err != nil {
 	//	return nil, errors.New(fiber.StatusServiceUnavailable, err.Error())
 	//}
+
+	return channels, nil
+}
+
+func (repository *channelRepository) FindManyByThreshold(threshold int) ([]Channel, error) {
+	var channels []Channel
+	result := repository.DB.Joins("Message").Where("timestamp < UNIX_TIMESTAMP(DATE_ADD(NOW(), INTERVAL ? day))", -threshold).Find(&channels)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusInternalServerError, result.Error.Error())
+	}
 
 	return channels, nil
 }
