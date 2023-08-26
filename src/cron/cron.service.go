@@ -10,6 +10,7 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
+	"github.com/thoas/go-funk"
 	"gorm.io/gorm"
 	"io"
 	"net/http"
@@ -57,10 +58,10 @@ var SetService = wire.NewSet(New)
 
 func (service *cronService) isWeekendOrHoliday() bool {
 	now := time.Now()
-	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
-		logrus.Infof("It's weekend!")
-		return true
-	}
+	//if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+	//	logrus.Infof("It's weekend!")
+	//	return true
+	//}
 
 	uri, uriBuildErr := service.config.OpenApi.GetUrl(now)
 	if uriBuildErr != nil {
@@ -230,8 +231,15 @@ func (service *cronService) notificationTask(tx *gorm.DB) error {
 		return err
 	}
 
+	predicate := func(i channels.Channel) string {
+		return i.Name
+	}
+	channelNames := funk.Map(targetChannels, predicate).([]string)
 	utils.PrettyPrint(targetChannels)
-	//spew.Dump(targetChannels)
+	sendDMErr := service.slackService.SendDM(channelNames)
+	if sendDMErr != nil {
+		return sendDMErr
+	}
 
 	return nil
 }

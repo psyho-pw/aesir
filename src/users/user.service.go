@@ -12,6 +12,7 @@ type Service interface {
 	FindMany() ([]User, error)
 	FindOne(id int) (*User, error)
 	FindOneBySlackId(id string) (*User, error)
+	FindManagers() ([]User, error)
 	UpdateOne(id int, user *User) (*User, error)
 	UpdateManagers(ids []int) error
 	DeleteOne(id int) (*User, error)
@@ -47,6 +48,10 @@ func (service *userService) FindOne(id int) (*User, error) {
 
 func (service *userService) FindOneBySlackId(id string) (*User, error) {
 	return service.repository.FindOneBySlackId(id)
+}
+
+func (service *userService) FindManagers() ([]User, error) {
+	return service.repository.FindManagers()
 }
 
 func (service *userService) UpdateOne(id int, user *User) (*User, error) {
