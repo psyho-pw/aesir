@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 	"io"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -54,40 +55,59 @@ func New(
 
 var SetService = wire.NewSet(New)
 
+func (service *cronService) isWeekendOrHoliday() bool {
+	now := time.Now()
+	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+		logrus.Infof("It's weekend!")
+		return true
+	}
+
+	uri, uriBuildErr := service.config.OpenApi.GetUrl(now)
+	if uriBuildErr != nil {
+		panic(uri)
+	}
+
+	logrus.Printf("%s", uri)
+	response, openApiErr := http.Get(uri)
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(response.Body)
+
+	if openApiErr != nil {
+		panic(openApiErr)
+	}
+
+	data, readErr := io.ReadAll(response.Body)
+	if readErr != nil {
+		panic(readErr)
+	}
+	var openApiResponse OpenApiResponse
+	if unMarshalErr := json.Unmarshal(data, &openApiResponse); unMarshalErr != nil {
+		panic(unMarshalErr)
+	}
+
+	// check holidays
+	for _, item := range openApiResponse.Response.Body.Items.Item {
+		itemDate, err := time.Parse("20060102", strconv.Itoa(item.LocDate))
+		if err != nil {
+			logrus.Errorf("date parse err")
+			continue
+		}
+
+		if now.Day() == itemDate.Day() {
+			logrus.Infof("It's holiday!")
+			return true
+		}
+	}
+
+	return false
+}
+
 func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func() {
 	return func() {
-		now := time.Now()
-		if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
-			logrus.Infof("It's weekend!")
+		if service.isWeekendOrHoliday() == true {
 			return
 		}
-
-		uri, uriBuildErr := service.config.OpenApi.GetUrl(now)
-		if uriBuildErr != nil {
-			panic(uri)
-		}
-
-		logrus.Printf("%s", uri)
-		response, openApiErr := http.Get(uri)
-		defer func(Body io.ReadCloser) {
-			_ = Body.Close()
-		}(response.Body)
-
-		if openApiErr != nil {
-			panic(openApiErr)
-		}
-
-		data, readErr := io.ReadAll(response.Body)
-		if readErr != nil {
-			panic(readErr)
-		}
-		var openApiResponse OpenApiResponse
-		if unMarshalErr := json.Unmarshal(data, &openApiResponse); unMarshalErr != nil {
-			panic(unMarshalErr)
-		}
-
-		utils.PrettyPrint(openApiResponse)
-		//TODO: check holiday
 
 		tx := service.db.Begin()
 		logrus.Info("Transaction start")
