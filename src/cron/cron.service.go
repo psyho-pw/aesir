@@ -240,10 +240,10 @@ func (service *cronService) notificationTask(tx *gorm.DB) error {
 		return nil
 	}
 
-	predicate := func(i channels.Channel) string {
+	namePredicate := func(i channels.Channel) string {
 		return i.Name
 	}
-	channelNames := funk.Map(targetChannels, predicate).([]string)
+	channelNames := funk.Map(targetChannels, namePredicate).([]string)
 	utils.PrettyPrint(targetChannels)
 	sendDMErr := service.slackService.SendDM(channelNames)
 	if sendDMErr != nil {
@@ -255,7 +255,10 @@ func (service *cronService) notificationTask(tx *gorm.DB) error {
 	}
 
 	channelIds := funk.Map(targetChannels, idPredicate).([]int)
-	service.messageService.UpdateTimestampsByChannelIds(channelIds, targetChannels[0].Threshold)
+	updateTsErr := service.messageService.UpdateTimestampsByChannelIds(channelIds, targetChannels[0].Threshold)
+	if updateTsErr != nil {
+		return updateTsErr
+	}
 
 	return nil
 }
