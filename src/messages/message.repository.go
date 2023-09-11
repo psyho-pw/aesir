@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	Create(message Message) (*Message, error)
 	FindMany() ([]Message, error)
+	UpdateTimestampsByChannelIds(channelIds []int, threshold int) error
 	WithTx(tx *gorm.DB) Repository
 }
 
@@ -24,15 +25,6 @@ func NewMessageRepository(db *gorm.DB) Repository {
 
 var SetRepository = wire.NewSet(NewMessageRepository)
 
-func (repository *messageRepository) FindMany() ([]Message, error) {
-	var messages []Message
-	if err := repository.DB.Order("id desc").Find(&messages).Error; err != nil {
-		return nil, errors.New(fiber.StatusServiceUnavailable, err.Error())
-	}
-
-	return messages, nil
-}
-
 func (repository *messageRepository) Create(message Message) (*Message, error) {
 	result := repository.DB.Create(&message)
 	if result.Error != nil {
@@ -43,6 +35,27 @@ func (repository *messageRepository) Create(message Message) (*Message, error) {
 	}
 
 	return &message, nil
+}
+
+func (repository *messageRepository) FindMany() ([]Message, error) {
+	var messages []Message
+	if err := repository.DB.Order("id desc").Find(&messages).Error; err != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, err.Error())
+	}
+
+	return messages, nil
+}
+
+func (repository *messageRepository) UpdateTimestampsByChannelIds(channelIds []int, threshold int) error {
+	result := repository.DB.Model(&Message{}).Where("channel_id IN ?", channelIds).Update("Timestamp", gorm.Expr("UNIX_TIMESTAMP(DATE_ADD(NOW(), INTERVAL ? day))", threshold+1))
+	if result.Error != nil {
+		return errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return errors.New(fiber.StatusNotFound, "not affected")
+	}
+
+	return nil
 }
 
 func (repository *messageRepository) WithTx(tx *gorm.DB) Repository {

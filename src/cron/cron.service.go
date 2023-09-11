@@ -4,6 +4,7 @@ import (
 	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/utils"
+	"aesir/src/messages"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"encoding/json"
@@ -32,6 +33,7 @@ type cronService struct {
 	slackService   slackbot.Service
 	userService    users.Service
 	channelService channels.Service
+	messageService messages.Service
 }
 
 func New(
@@ -40,6 +42,7 @@ func New(
 	slackService slackbot.Service,
 	userService users.Service,
 	channelService channels.Service,
+	messageService messages.Service,
 ) Service {
 	svcOnce.Do(func() {
 		svc = &cronService{
@@ -48,6 +51,7 @@ func New(
 			slackService,
 			userService,
 			channelService,
+			messageService,
 		}
 	})
 
@@ -231,6 +235,11 @@ func (service *cronService) notificationTask(tx *gorm.DB) error {
 		return err
 	}
 
+	if len(targetChannels) == 0 {
+		logrus.Infof("there are no channels to notified")
+		return nil
+	}
+
 	predicate := func(i channels.Channel) string {
 		return i.Name
 	}
@@ -240,6 +249,13 @@ func (service *cronService) notificationTask(tx *gorm.DB) error {
 	if sendDMErr != nil {
 		return sendDMErr
 	}
+
+	idPredicate := func(i channels.Channel) uint {
+		return i.ID
+	}
+
+	channelIds := funk.Map(targetChannels, idPredicate).([]int)
+	service.messageService.UpdateTimestampsByChannelIds(channelIds, targetChannels[0].Threshold)
 
 	return nil
 }
