@@ -39,7 +39,11 @@ type OpenApiConfig struct {
 }
 
 func (openApiConfig *OpenApiConfig) GetUrl(now time.Time) (string, error) {
-	params := openApiConfig.BaseParams
+	params := url.Values{}
+	for key, value := range openApiConfig.BaseParams {
+		params[key] = value
+	}
+
 	params.Add("solYear", strconv.Itoa(now.Year()))
 	params.Add("solMonth", fmt.Sprintf("%.2d", 9))
 

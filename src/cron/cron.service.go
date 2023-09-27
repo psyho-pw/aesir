@@ -29,7 +29,7 @@ type Service interface {
 
 type cronService struct {
 	config         *common.Config
-	db             *gorm.DB
+	db             gorm.DB
 	slackService   slackbot.Service
 	userService    users.Service
 	channelService channels.Service
@@ -47,7 +47,7 @@ func New(
 	svcOnce.Do(func() {
 		svc = &cronService{
 			config,
-			db,
+			*db,
 			slackService,
 			userService,
 			channelService,
@@ -60,12 +60,12 @@ func New(
 
 var SetService = wire.NewSet(New)
 
-func (service *cronService) isWeekendOrHoliday() bool {
+func (service *cronService) isWeekendOrHoliday() (flag bool) {
 	now := time.Now()
-	//if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
-	//	logrus.Infof("It's weekend!")
-	//	return true
-	//}
+	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+		logrus.Infof("It's weekend!")
+		return true
+	}
 
 	uri, uriBuildErr := service.config.OpenApi.GetUrl(now)
 	if uriBuildErr != nil {
@@ -74,9 +74,16 @@ func (service *cronService) isWeekendOrHoliday() bool {
 
 	logrus.Printf("%s", uri)
 	response, openApiErr := http.Get(uri)
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(response.Body)
+	defer func(Response *http.Response) {
+		if r := recover(); r != nil {
+			logrus.Errorf("%s", "http get error")
+			flag = false
+		}
+
+		if Response != nil {
+			_ = Response.Body.Close()
+		}
+	}(response)
 
 	if openApiErr != nil {
 		panic(openApiErr)
@@ -240,6 +247,16 @@ func (service *cronService) notificationTask(tx *gorm.DB) error {
 		return nil
 	}
 
+	idPredicate := func(i channels.Channel) int {
+		return int(i.ID)
+	}
+
+	channelIds := funk.Map(targetChannels, idPredicate).([]int)
+	updateTsErr := service.messageService.UpdateTimestampsByChannelIds(channelIds, targetChannels[0].Threshold)
+	if updateTsErr != nil {
+		return updateTsErr
+	}
+
 	namePredicate := func(i channels.Channel) string {
 		return i.Name
 	}
@@ -250,14 +267,23 @@ func (service *cronService) notificationTask(tx *gorm.DB) error {
 		return sendDMErr
 	}
 
-	idPredicate := func(i channels.Channel) uint {
-		return i.ID
+	return nil
+}
+
+func (service *cronService) runTask(tx *gorm.DB) error {
+	userTaskErr := service.userTask(tx)
+	if userTaskErr != nil {
+		return userTaskErr
 	}
 
-	channelIds := funk.Map(targetChannels, idPredicate).([]int)
-	updateTsErr := service.messageService.UpdateTimestampsByChannelIds(channelIds, targetChannels[0].Threshold)
-	if updateTsErr != nil {
-		return updateTsErr
+	channelTaskErr := service.channelTask(tx)
+	if channelTaskErr != nil {
+		return channelTaskErr
+	}
+
+	notificationTaskErr := service.notificationTask(tx)
+	if notificationTaskErr != nil {
+		return notificationTaskErr
 	}
 
 	return nil
@@ -271,8 +297,9 @@ func (service *cronService) Start() error {
 	//_, _ = scheduler.CronWithSeconds("0 * * * * *").Do(service.transactionWrapper(service.userTask))
 	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.userTask))
 	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.channelTask))
-	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.notificationTask))
-	scheduler.StartAsync()
+	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.notificationTask))
+	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.runTask))
+	scheduler.StartBlocking()
 
 	return nil
 }
