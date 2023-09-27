@@ -14,6 +14,7 @@ type Repository interface {
 	Find() ([]User, error)
 	FindOne(id int) (*User, error)
 	FindOneBySlackId(id string) (*User, error)
+	FindManagers() ([]User, error)
 	UpdateOne(id int, user User) (*User, error)
 	DeleteOne(id int) (*User, error)
 	UpdateManagersByUserIds(ids []int) error
@@ -90,6 +91,14 @@ func (repository *userRepository) FindOneBySlackId(id string) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+func (repository *userRepository) FindManagers() ([]User, error) {
+	var users []User
+	if err := repository.DB.Where(&User{IsManager: true}).Order("id DESC").Find(&users).Error; err != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, err.Error())
+	}
+	return users, nil
 }
 
 func (repository *userRepository) UpdateOne(id int, user User) (*User, error) {

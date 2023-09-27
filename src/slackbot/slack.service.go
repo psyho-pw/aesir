@@ -20,6 +20,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 type Service interface {
@@ -35,6 +36,7 @@ type Service interface {
 	FindChannel(channelId string) (*slack.Channel, error)
 	FindLatestChannelMessage(channelId string) (*slack.Message, error)
 	FindTeamUsers(teamId string) ([]slack.User, error)
+	SendDM(channelNames []string) error
 	WithTx(tx *gorm.DB) Service
 }
 
@@ -336,8 +338,8 @@ func (service *slackService) OnInteractionTypeManagerSelect(selectedOptions *[]s
 		return id
 	}
 
-	userIds := funk.Map(*selectedOptions, predicate)
-	err := service.userService.UpdateManagers(userIds.([]int))
+	userIds := funk.Map(*selectedOptions, predicate).([]int)
+	err := service.userService.UpdateManagers(userIds)
 	if err != nil {
 		return err
 	}
@@ -469,6 +471,37 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 	}
 
 	return funk.Filter(usersResponse, predicate).([]slack.User), nil
+}
+
+func (service *slackService) SendDM(channelNames []string) error {
+	managers, findManagersErr := service.userService.FindManagers()
+	if findManagersErr != nil {
+		return findManagersErr
+	}
+
+	for _, manager := range managers {
+		params := &slack.OpenConversationParameters{
+			ReturnIM: true,
+			Users:    []string{manager.SlackId},
+		}
+		channel, noOp, alreadyOpen, err := service.api.OpenConversation(params)
+		if err != nil {
+			return err
+		}
+		logrus.Debugf("%v, %v", noOp, alreadyOpen)
+
+		channelId, timestamp, sendErr := service.api.PostMessage(
+			channel.ID,
+			slack.MsgOptionText(fmt.Sprintf("inactive channels: %s", strings.Join(channelNames, ", ")), false),
+		)
+		if sendErr != nil {
+			logrus.Error(sendErr)
+			continue
+		}
+		logrus.Println(channelId, timestamp)
+	}
+
+	return nil
 }
 
 func (service *slackService) WithTx(tx *gorm.DB) Service {

@@ -4,12 +4,18 @@ import (
 	"aesir/src/channels"
 	"aesir/src/common"
 	"aesir/src/common/utils"
+	"aesir/src/messages"
 	"aesir/src/slackbot"
 	"aesir/src/users"
+	"encoding/json"
 	"github.com/go-co-op/gocron"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
+	"github.com/thoas/go-funk"
 	"gorm.io/gorm"
+	"io"
+	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -23,10 +29,11 @@ type Service interface {
 
 type cronService struct {
 	config         *common.Config
-	db             *gorm.DB
+	db             gorm.DB
 	slackService   slackbot.Service
 	userService    users.Service
 	channelService channels.Service
+	messageService messages.Service
 }
 
 func New(
@@ -35,14 +42,16 @@ func New(
 	slackService slackbot.Service,
 	userService users.Service,
 	channelService channels.Service,
+	messageService messages.Service,
 ) Service {
 	svcOnce.Do(func() {
 		svc = &cronService{
 			config,
-			db,
+			*db,
 			slackService,
 			userService,
 			channelService,
+			messageService,
 		}
 	})
 
@@ -51,8 +60,67 @@ func New(
 
 var SetService = wire.NewSet(New)
 
+func (service *cronService) isWeekendOrHoliday() (flag bool) {
+	now := time.Now()
+	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
+		logrus.Infof("It's weekend!")
+		return true
+	}
+
+	uri, uriBuildErr := service.config.OpenApi.GetUrl(now)
+	if uriBuildErr != nil {
+		panic(uri)
+	}
+
+	logrus.Printf("%s", uri)
+	response, openApiErr := http.Get(uri)
+	defer func(Response *http.Response) {
+		if r := recover(); r != nil {
+			logrus.Errorf("%s", "http get error")
+			flag = false
+		}
+
+		if Response != nil {
+			_ = Response.Body.Close()
+		}
+	}(response)
+
+	if openApiErr != nil {
+		panic(openApiErr)
+	}
+
+	data, readErr := io.ReadAll(response.Body)
+	if readErr != nil {
+		panic(readErr)
+	}
+	var openApiResponse OpenApiResponse
+	if unMarshalErr := json.Unmarshal(data, &openApiResponse); unMarshalErr != nil {
+		panic(unMarshalErr)
+	}
+
+	// check holidays
+	for _, item := range openApiResponse.Response.Body.Items.Item {
+		itemDate, err := time.Parse("20060102", strconv.Itoa(item.LocDate))
+		if err != nil {
+			logrus.Errorf("date parse err")
+			continue
+		}
+
+		if now.Day() == itemDate.Day() {
+			logrus.Infof("It's holiday!")
+			return true
+		}
+	}
+
+	return false
+}
+
 func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func() {
 	return func() {
+		if service.isWeekendOrHoliday() == true {
+			return
+		}
+
 		tx := service.db.Begin()
 		logrus.Info("Transaction start")
 
@@ -161,15 +229,77 @@ func (service *cronService) channelTask(tx *gorm.DB) error {
 	return nil
 }
 
-func (service *cronService) Start() error {
-	if service.config.AppEnv != "production" {
+func (service *cronService) notificationTask(tx *gorm.DB) error {
+	defer utils.Timer()()
+	logrus.Infof("running notificationTask")
+	channel, findFirstErr := service.channelService.FindFirstOne()
+	if findFirstErr != nil {
+		return findFirstErr
+	}
+
+	targetChannels, err := service.channelService.FindManyByThreshold(channel.Threshold)
+	if err != nil {
+		return err
+	}
+
+	if len(targetChannels) == 0 {
+		logrus.Infof("there are no channels to notified")
 		return nil
 	}
+
+	idPredicate := func(i channels.Channel) int {
+		return int(i.ID)
+	}
+
+	channelIds := funk.Map(targetChannels, idPredicate).([]int)
+	updateTsErr := service.messageService.UpdateTimestampsByChannelIds(channelIds, targetChannels[0].Threshold)
+	if updateTsErr != nil {
+		return updateTsErr
+	}
+
+	namePredicate := func(i channels.Channel) string {
+		return i.Name
+	}
+	channelNames := funk.Map(targetChannels, namePredicate).([]string)
+	utils.PrettyPrint(targetChannels)
+	sendDMErr := service.slackService.SendDM(channelNames)
+	if sendDMErr != nil {
+		return sendDMErr
+	}
+
+	return nil
+}
+
+func (service *cronService) runTask(tx *gorm.DB) error {
+	userTaskErr := service.userTask(tx)
+	if userTaskErr != nil {
+		return userTaskErr
+	}
+
+	channelTaskErr := service.channelTask(tx)
+	if channelTaskErr != nil {
+		return channelTaskErr
+	}
+
+	notificationTaskErr := service.notificationTask(tx)
+	if notificationTaskErr != nil {
+		return notificationTaskErr
+	}
+
+	return nil
+}
+
+func (service *cronService) Start() error {
+	//if service.config.AppEnv != "production" {
+	//	return nil
+	//}
 	scheduler := gocron.NewScheduler(time.Local)
 	//_, _ = scheduler.CronWithSeconds("0 * * * * *").Do(service.transactionWrapper(service.userTask))
-	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.userTask))
-	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.channelTask))
-	scheduler.StartAsync()
+	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.userTask))
+	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.channelTask))
+	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.notificationTask))
+	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.runTask))
+	scheduler.StartBlocking()
 
 	return nil
 }
