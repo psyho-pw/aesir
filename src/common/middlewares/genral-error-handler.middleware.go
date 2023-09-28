@@ -31,7 +31,7 @@ func GeneralErrorHandler(webhookUrl string) fiber.ErrorHandler {
 		// error reporting
 		reportErr := Errors.Report(webhookUrl, exception)
 		if reportErr != nil {
-			logrus.Errorf("report service unavailable")
+			logrus.Errorf("report service unavailable, %+v", reportErr)
 		}
 
 		logrus.SetOutput(colorable.NewColorableStdout())

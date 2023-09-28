@@ -66,6 +66,7 @@ type Config struct {
 	DB      DB
 	Csrf    csrf.Config
 	Slack   SlackConfig
+	Discord DiscordConfig
 	OpenApi OpenApiConfig
 }
 
@@ -218,6 +219,7 @@ func NewConfig() *Config {
 		DB:      dbConfig(),
 		Csrf:    csrfConfig(),
 		Slack:   slackConfig(),
+		Discord: discordConfig(),
 		OpenApi: openApiConfig(),
 	}
 
