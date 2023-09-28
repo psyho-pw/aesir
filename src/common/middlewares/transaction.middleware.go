@@ -10,17 +10,20 @@ func TxMiddleware(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		tx := db.Begin()
 		logrus.Info("Transaction start")
+
 		defer func() {
 			if r := recover(); r != nil {
 				logrus.Errorf("%+v", r)
 				tx.Rollback()
 				logrus.Error("Transaction rollback")
+
 				_ = c.Status(fiber.StatusInternalServerError).SendString("internal server error")
 			}
 
 			tx.Commit()
 			logrus.Debug("Transaction end")
 		}()
+
 		c.Locals("TX", tx)
 		return c.Next()
 	}

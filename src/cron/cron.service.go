@@ -74,14 +74,14 @@ func (service *cronService) isWeekendOrHoliday() (flag bool) {
 
 	logrus.Printf("%s", uri)
 	response, openApiErr := http.Get(uri)
-	defer func(Response *http.Response) {
+	defer func(response *http.Response) {
 		if r := recover(); r != nil {
 			logrus.Errorf("%s", "http get error")
 			flag = false
 		}
 
-		if Response != nil {
-			_ = Response.Body.Close()
+		if response != nil {
+			_ = response.Body.Close()
 		}
 	}(response)
 
@@ -299,7 +299,7 @@ func (service *cronService) Start() error {
 	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.channelTask))
 	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.notificationTask))
 	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.runTask))
-	scheduler.StartBlocking()
+	scheduler.StartAsync()
 
 	return nil
 }
