@@ -7,7 +7,7 @@ import (
 
 type Channel struct {
 	gorm.Model
-	SlackId    string            `gorm:"uniqueIndex" json:"slackId"`
+	SlackId    string            `json:"slackId"`
 	Name       string            `json:"name"`
 	Creator    string            `json:"creator"`
 	IsPrivate  bool              `json:"isPrivate"`

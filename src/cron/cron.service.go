@@ -136,10 +136,6 @@ func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func(
 			logrus.Debug("Transaction end")
 		}()
 
-		if service.isWeekendOrHoliday() == true {
-			return
-		}
-
 		err := fn(tx)
 		if err != nil {
 			panic(err)
@@ -285,6 +281,9 @@ func (service *cronService) runTask(tx *gorm.DB) error {
 		return channelTaskErr
 	}
 
+	if service.isWeekendOrHoliday() == true {
+		return nil
+	}
 	notificationTaskErr := service.notificationTask(tx)
 	if notificationTaskErr != nil {
 		return notificationTaskErr

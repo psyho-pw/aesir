@@ -87,13 +87,15 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	case _const.CommandTypeThreshold:
 		err = handler.service.WithTx(tx).OnThresholdCommand(command)
 		break
+	case _const.CommandTypeLeave:
+		err = handler.service.WithTx(tx).OnLeaveCommand(command)
 	default:
 		logrus.Errorf("no matching command exists")
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
 	if err != nil {
-		return nil
+		return err
 	}
 
 	return c.Status(fiber.StatusOK).Send(nil)

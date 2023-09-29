@@ -27,6 +27,7 @@ type Service interface {
 	EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error
 	OnManagerCommand(command slack.SlashCommand) error
 	OnThresholdCommand(command slack.SlashCommand) error
+	OnLeaveCommand(command slack.SlashCommand) error
 	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
 	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
 	WhoAmI() (*WhoAmI, error)
@@ -323,6 +324,20 @@ func (service *slackService) OnThresholdCommand(command slack.SlashCommand) erro
 	_, err := service.api.OpenView(command.TriggerID, modalRequest)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (service *slackService) OnLeaveCommand(command slack.SlashCommand) error {
+	_, deleteErr := service.channelService.DeleteOneBySlackId(command.ChannelID)
+	if deleteErr != nil {
+		return deleteErr
+	}
+
+	_, leaveErr := service.api.LeaveConversation(command.ChannelID)
+	if leaveErr != nil {
+		return errors.New(fiber.StatusServiceUnavailable, leaveErr.Error())
 	}
 
 	return nil
