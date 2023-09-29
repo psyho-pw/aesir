@@ -1,6 +1,5 @@
 package users
 
-import "C"
 import (
 	"aesir/src/common/errors"
 	"github.com/gofiber/fiber/v2"

@@ -19,6 +19,7 @@ require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/brianvoe/gofakeit v3.18.0+incompatible // indirect
+	github.com/bwmarrin/discordgo v0.27.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-co-op/gocron v1.30.1 // indirect
 	github.com/go-sql-driver/mysql v1.7.1 // indirect
@@ -42,6 +43,7 @@ require (
 	github.com/valyala/fasthttp v1.48.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
+	golang.org/x/crypto v0.7.0 // indirect
 	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/tools v0.4.0 // indirect

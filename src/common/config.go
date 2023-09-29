@@ -31,6 +31,10 @@ type SlackConfig struct {
 	TeamId   string
 }
 
+type DiscordConfig struct {
+	WebhookUrl string
+}
+
 type OpenApiConfig struct {
 	Token      string
 	BaseUrl    string
@@ -62,17 +66,18 @@ type Config struct {
 	DB      DB
 	Csrf    csrf.Config
 	Slack   SlackConfig
+	Discord DiscordConfig
 	OpenApi OpenApiConfig
 }
 
-func fiberConfig() fiber.Config {
+func fiberConfig(webhookUrl string) fiber.Config {
 	return fiber.Config{
 		//Prefork:       true,
 		CaseSensitive: true,
 		StrictRouting: true,
 		ServerHeader:  "Fiber",
 		AppName:       "Fiber v1",
-		ErrorHandler:  middlewares.GeneralErrorHandler,
+		ErrorHandler:  middlewares.GeneralErrorHandler(webhookUrl),
 	}
 }
 
@@ -175,6 +180,12 @@ func slackConfig() SlackConfig {
 	}
 }
 
+func discordConfig() DiscordConfig {
+	return DiscordConfig{
+		WebhookUrl: os.Getenv("DISCORD_WEBHOOK_URL"),
+	}
+}
+
 func openApiConfig() OpenApiConfig {
 	token := os.Getenv("OPENAPI_TOKEN")
 	params := url.Values{}
@@ -199,13 +210,16 @@ func NewConfig() *Config {
 
 	loggerConfig()
 
+	discord := discordConfig()
+
 	var config = Config{
 		AppEnv:  os.Getenv("APP_ENV"),
 		Port:    port,
-		Fiber:   fiberConfig(),
+		Fiber:   fiberConfig(discord.WebhookUrl),
 		DB:      dbConfig(),
 		Csrf:    csrfConfig(),
 		Slack:   slackConfig(),
+		Discord: discordConfig(),
 		OpenApi: openApiConfig(),
 	}
 

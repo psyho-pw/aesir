@@ -1,6 +1,7 @@
 package errors
 
 import (
+	localUtils "aesir/src/common/utils"
 	"fmt"
 	"github.com/gofiber/fiber/v2/utils"
 	"runtime"
@@ -8,6 +9,7 @@ import (
 
 type Error struct {
 	Code    int    `json:"code"`
+	Caller  string `json:"caller"`
 	Message string `json:"message"`
 	Stack   string `json:"stack"`
 }
@@ -18,6 +20,7 @@ func New(code int, message string) *Error {
 	err :=
 		&Error{
 			Code:    code,
+			Caller:  localUtils.CallerName(1),
 			Message: utils.StatusMessage(code),
 			Stack:   string(stackTraceBuf),
 		}

@@ -62,6 +62,8 @@ func (repository *channelRepository) FindMany() ([]Channel, error) {
 		return nil, errors.New(fiber.StatusServiceUnavailable, err.Error())
 	}
 
+	return nil, errors.New(fiber.StatusServiceUnavailable, "test")
+
 	return channels, nil
 }
 

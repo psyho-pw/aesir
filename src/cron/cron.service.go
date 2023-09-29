@@ -3,12 +3,15 @@ package cron
 import (
 	"aesir/src/channels"
 	"aesir/src/common"
+	"aesir/src/common/errors"
 	"aesir/src/common/utils"
 	"aesir/src/messages"
 	"aesir/src/slackbot"
 	"aesir/src/users"
 	"encoding/json"
+	"fmt"
 	"github.com/go-co-op/gocron"
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
 	"github.com/thoas/go-funk"
@@ -74,14 +77,14 @@ func (service *cronService) isWeekendOrHoliday() (flag bool) {
 
 	logrus.Printf("%s", uri)
 	response, openApiErr := http.Get(uri)
-	defer func(Response *http.Response) {
+	defer func(response *http.Response) {
 		if r := recover(); r != nil {
 			logrus.Errorf("%s", "http get error")
 			flag = false
 		}
 
-		if Response != nil {
-			_ = Response.Body.Close()
+		if response != nil {
+			_ = response.Body.Close()
 		}
 	}(response)
 
@@ -117,10 +120,6 @@ func (service *cronService) isWeekendOrHoliday() (flag bool) {
 
 func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func() {
 	return func() {
-		if service.isWeekendOrHoliday() == true {
-			return
-		}
-
 		tx := service.db.Begin()
 		logrus.Info("Transaction start")
 
@@ -128,6 +127,7 @@ func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func(
 			if r := recover(); r != nil {
 				logrus.Errorf("%+v", r)
 				//TODO error reporting
+				_ = errors.Report(service.config.Discord.WebhookUrl, errors.New(fiber.StatusInternalServerError, fmt.Sprintf("%+v", r)))
 				tx.Rollback()
 				logrus.Error("Transaction rollback")
 			}
@@ -135,6 +135,10 @@ func (service *cronService) transactionWrapper(fn func(tx *gorm.DB) error) func(
 			tx.Commit()
 			logrus.Debug("Transaction end")
 		}()
+
+		if service.isWeekendOrHoliday() == true {
+			return
+		}
 
 		err := fn(tx)
 		if err != nil {
@@ -299,7 +303,7 @@ func (service *cronService) Start() error {
 	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.channelTask))
 	//_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.notificationTask))
 	_, _ = scheduler.Every(5).Minute().Do(service.transactionWrapper(service.runTask))
-	scheduler.StartBlocking()
+	scheduler.StartAsync()
 
 	return nil
 }
