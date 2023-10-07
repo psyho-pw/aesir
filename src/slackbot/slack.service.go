@@ -27,6 +27,7 @@ type Service interface {
 	EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error
 	OnManagerCommand(command slack.SlashCommand) error
 	OnThresholdCommand(command slack.SlashCommand) error
+	OnLeaveCommand(command slack.SlashCommand) error
 	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
 	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
 	WhoAmI() (*WhoAmI, error)
@@ -67,16 +68,19 @@ var SetService = wire.NewSet(NewSlackService)
 func (service *slackService) EventMux(innerEvent *slackevents.EventsAPIInnerEvent) error {
 	switch evt := innerEvent.Data.(type) {
 	case *slackevents.MessageEvent:
+		if evt.SubType == "channel_join" {
+			return service.handleMemberJoinEvent(evt)
+		}
 		return service.handleMessageEvent(evt)
-	case *slackevents.MemberJoinedChannelEvent:
-		return service.handleMemberJoinEvent(evt)
+	//case *slackevents.MemberJoinedChannelEvent:
+	//	return service.handleMemberJoinEvent(evt)
 	default:
 		logrus.Debugf("no matching event from incoming type")
 		return nil
 	}
 }
 
-func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoinedChannelEvent) error {
+func (service *slackService) handleMemberJoinEvent(event *slackevents.MessageEvent) error {
 	self, slackErr := service.WhoAmI()
 	if slackErr != nil {
 		return slackErr
@@ -87,7 +91,7 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoin
 
 	channel, slackChannelErr := service.FindChannel(event.Channel)
 	if slackChannelErr != nil {
-		return slackChannelErr
+		return errors.New(fiber.StatusServiceUnavailable, slackChannelErr.Error())
 	}
 
 	persistentChannel, err := service.channelService.FindOneBySlackId(channel.ID)
@@ -101,6 +105,9 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MemberJoin
 		newChannel.Creator = channel.Creator
 		newChannel.IsPrivate = channel.IsPrivate
 		newChannel.IsArchived = channel.IsArchived
+		message := new(messages.Message)
+		message.ChannelId = newChannel.ID
+		newChannel.Message = message
 
 		isSame := reflect.DeepEqual(persistentChannel, newChannel)
 		if isSame == true {
@@ -328,6 +335,21 @@ func (service *slackService) OnThresholdCommand(command slack.SlashCommand) erro
 	return nil
 }
 
+func (service *slackService) OnLeaveCommand(command slack.SlashCommand) error {
+	//TODO delete message manually or use Delete with select
+	_, deleteErr := service.channelService.DeleteOneBySlackId(command.ChannelID)
+	if deleteErr != nil {
+		return deleteErr
+	}
+
+	_, leaveErr := service.api.LeaveConversation(command.ChannelID)
+	if leaveErr != nil {
+		return errors.New(fiber.StatusServiceUnavailable, leaveErr.Error())
+	}
+
+	return nil
+}
+
 /*
 ********** Interaction related services
  */
@@ -370,7 +392,7 @@ type WhoAmI struct {
 func (service *slackService) WhoAmI() (*WhoAmI, error) {
 	authTestResponse, err := service.api.AuthTest()
 	if err != nil {
-		return nil, err
+		return nil, errors.New(fiber.StatusServiceUnavailable, err.Error())
 	}
 
 	whoAmI := &WhoAmI{
