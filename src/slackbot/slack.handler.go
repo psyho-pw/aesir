@@ -79,6 +79,7 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	}
 	logrus.Infof("%s command triggered", command.Command)
 
+	var responseStr string
 	var err error
 	switch commandType {
 	case _const.CommandTypeManager:
@@ -89,6 +90,7 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 		break
 	case _const.CommandTypeLeave:
 		err = handler.service.WithTx(tx).OnLeaveCommand(command)
+		responseStr = "was removed from channel"
 	default:
 		logrus.Errorf("no matching command exists")
 		return c.SendStatus(fiber.StatusBadRequest)
@@ -98,7 +100,7 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 		return err
 	}
 
-	return c.Status(fiber.StatusOK).Send(nil)
+	return c.Status(fiber.StatusOK).SendString(responseStr)
 }
 
 func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
