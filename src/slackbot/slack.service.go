@@ -105,9 +105,7 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MessageEve
 		newChannel.Creator = channel.Creator
 		newChannel.IsPrivate = channel.IsPrivate
 		newChannel.IsArchived = channel.IsArchived
-		message := new(messages.Message)
-		message.ChannelId = newChannel.ID
-		newChannel.Message = message
+		newChannel.Threshold = persistentChannel.Threshold
 
 		isSame := reflect.DeepEqual(persistentChannel, newChannel)
 		if isSame == true {
@@ -122,12 +120,18 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MessageEve
 		return nil
 	}
 
+	oldestChannel, findFirstErr := service.channelService.FindFirstOne()
+	if findFirstErr != nil {
+		return findFirstErr
+	}
+
 	newChannel := new(channels.Channel)
 	newChannel.SlackId = channel.ID
 	newChannel.Name = channel.Name
 	newChannel.Creator = channel.Creator
 	newChannel.IsPrivate = channel.IsPrivate
 	newChannel.IsArchived = channel.IsArchived
+	newChannel.Threshold = oldestChannel.Threshold
 
 	_, creationErr := service.channelService.Create(*newChannel)
 	if creationErr != nil {
