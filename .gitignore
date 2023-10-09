@@ -49,6 +49,7 @@ go.work
 !.air.toml
 !env.example
 !.mockery.yaml
+!public/*
 
 # ...even if they are in subdirectories
 !*/
