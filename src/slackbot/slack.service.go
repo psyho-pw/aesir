@@ -9,7 +9,6 @@ import (
 	"aesir/src/messages"
 	"aesir/src/users"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
 	"github.com/sirupsen/logrus"
@@ -151,10 +150,7 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MessageEve
 	if ch.Message != nil {
 		return nil
 	}
-
 	ch.Message = message
-
-	spew.Dump(ch)
 
 	_, channelUpdateErr := service.channelService.UpdateOneBySlackId(event.Channel, *ch)
 	if channelUpdateErr != nil {

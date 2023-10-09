@@ -122,9 +122,6 @@ func (repository *channelRepository) UpdateOneBySlackId(slackId string, channel 
 	if result.Error != nil {
 		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
 	}
-	if result.RowsAffected == 0 {
-		return nil, errors.New(fiber.StatusNotFound, "not affected")
-	}
 
 	return &channel, nil
 }
