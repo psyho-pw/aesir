@@ -9,6 +9,11 @@ import (
 )
 
 func init() {
+	appEnv := os.Getenv("APP_ENV")
+	if appEnv != "development" {
+		return
+	}
+
 	err := godotenv.Load()
 	if err != nil {
 		panic("Error loading .env file")
