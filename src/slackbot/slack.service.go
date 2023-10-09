@@ -133,9 +133,24 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MessageEve
 	newChannel.IsArchived = channel.IsArchived
 	newChannel.Threshold = oldestChannel.Threshold
 
-	_, creationErr := service.channelService.Create(*newChannel)
+	ch, creationErr := service.channelService.Create(*newChannel)
 	if creationErr != nil {
 		return creationErr
+	}
+
+	var parseErr error
+	message := new(messages.Message)
+	message.ChannelId = ch.ID
+	message.Timestamp, parseErr = strconv.ParseFloat(event.TimeStamp, 64)
+	if parseErr != nil {
+		return errors.New(fiber.StatusInternalServerError, "timestamp parse error")
+	}
+
+	ch.Message = message
+
+	_, channelUpdateErr := service.channelService.UpdateOneBySlackId(event.Channel, *ch)
+	if channelUpdateErr != nil {
+		return channelUpdateErr
 	}
 
 	return nil
