@@ -146,8 +146,11 @@ func (service *slackService) handleMemberJoinEvent(event *slackevents.MessageEve
 		return errors.New(fiber.StatusInternalServerError, "timestamp parse error")
 	}
 
-	ch.Message = message
+	if ch.Message != nil {
+		return nil
+	}
 
+	ch.Message = message
 	_, channelUpdateErr := service.channelService.UpdateOneBySlackId(event.Channel, *ch)
 	if channelUpdateErr != nil {
 		return channelUpdateErr
