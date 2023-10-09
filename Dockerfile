@@ -7,7 +7,7 @@ WORKDIR /go/src/aesir
 COPY go.mod go.sum main.go ./
 RUN go mod download
 
-COPY .env Makefile wire.go wire_gen.go ./
+COPY Makefile wire.go wire_gen.go ./
 COPY src/ ./src
 RUN CGO_ENABLED=1 GOOS=linux go build -o out/aesir .
 #RUN ldd /go/src/aesir/out/aesir | tr -s [:blank:] '\n' | grep ^/ | xargs -I % install -D % /go/src/aesir/out/%
