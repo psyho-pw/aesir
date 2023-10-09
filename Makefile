@@ -45,10 +45,10 @@ vet:
 	go vet
 
 docker-build:
-	docker build --platform linux/amd64 --tag fishcreek/${BINARY_NAME} -f Dockerfile .
+	sudo docker build --platform linux/amd64 --tag fishcreek/${BINARY_NAME} -f Dockerfile .
 
 docker-push:
-	docker push fishcreek/${BINARY_NAME}
+	sudo docker push fishcreek/${BINARY_NAME}
 
 docker-run:
 	@if [ !"$$(docker ps -a -q -f name=${BINARY_NAME})" ]; then \
