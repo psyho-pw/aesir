@@ -37,6 +37,7 @@ func getCredentials(webhookUrl string) discordgo.Webhook {
 }
 
 func formatMessage(exception *Error) *discordgo.WebhookParams {
+	logrus.Errorf("%+v", exception)
 	messageField := &discordgo.MessageEmbedField{
 		Name:  "Message",
 		Value: exception.Message,
