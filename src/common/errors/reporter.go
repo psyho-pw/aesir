@@ -48,13 +48,13 @@ func formatMessage(exception *Error) *discordgo.WebhookParams {
 	}
 
 	embed := &discordgo.MessageEmbed{
-		Title: func(caller string) string {
-			if caller == _const.Unknown {
+		Title: func(caller *string) string {
+			if caller == nil || *caller == _const.Unknown {
 				return _const.UnhandledException
 			}
 
-			return caller
-		}(exception.Caller),
+			return *caller
+		}(&exception.Caller),
 		Color:  16711680,
 		Fields: []*discordgo.MessageEmbedField{messageField, stackField},
 	}
