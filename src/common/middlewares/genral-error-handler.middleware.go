@@ -15,6 +15,8 @@ func GeneralErrorHandler(webhookUrl string) fiber.ErrorHandler {
 		logrus.SetOutput(os.Stderr)
 		code := fiber.StatusInternalServerError
 
+		logrus.Debugf("%+v", err)
+
 		var exception *Errors.Error
 		if errors.As(err, &exception) {
 			code = exception.Code
