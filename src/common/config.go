@@ -49,7 +49,7 @@ func (openApiConfig *OpenApiConfig) GetUrl(now time.Time) (string, error) {
 	}
 
 	params.Add("solYear", strconv.Itoa(now.Year()))
-	params.Add("solMonth", fmt.Sprintf("%.2d", 9))
+	params.Add("solMonth", fmt.Sprintf("%.2d", now.Month()))
 
 	uri, _ := url.ParseRequestURI(openApiConfig.BaseUrl)
 	uri.Path = openApiConfig.Resource

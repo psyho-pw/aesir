@@ -38,8 +38,10 @@ func GeneralErrorHandler(webhookUrl string) fiber.ErrorHandler {
 		}
 
 		//remove later
-		if err == nil {
-			logrus.Debugf("%+v", ctx.Context())
+		if exception == nil {
+			logrus.Debugf("%+v", ctx.Request().RequestURI())
+			logrus.Debugf("%+v", ctx.Request().URI())
+			logrus.Debugf("%+v", ctx.Request().PostArgs())
 			logrus.Debugf("%+v", utils.CallerName(1))
 		}
 
