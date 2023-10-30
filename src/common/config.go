@@ -116,7 +116,7 @@ func NewLumberjackHook(writer *lumberjack.Logger) *LumberjackHook {
 
 func loggerConfig() {
 	logPath := "./logs/logs.log"
-	maxSize := 100
+	maxSize := 10
 	maxBackups := 90
 	maxAge := 1
 
