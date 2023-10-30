@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	Errors "aesir/src/common/errors"
+	"aesir/src/common/utils"
 	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/mattn/go-colorable"
@@ -34,6 +35,12 @@ func GeneralErrorHandler(webhookUrl string) fiber.ErrorHandler {
 			if reportErr != nil {
 				logrus.Errorf("report service unavailable, %+v", reportErr)
 			}
+		}
+
+		//remove later
+		if err == nil {
+			logrus.Debugf("%+v", ctx.Context())
+			logrus.Debugf("%+v", utils.CallerName(1))
 		}
 
 		logrus.SetOutput(colorable.NewColorableStdout())
