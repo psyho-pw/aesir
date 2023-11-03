@@ -80,6 +80,7 @@ func (service *cronService) isWeekendOrHoliday() (flag bool) {
 	defer func(response *http.Response) {
 		if r := recover(); r != nil {
 			logrus.Errorf("%s", "http get error")
+			logrus.Debugf("%+v", response.Body)
 			logrus.Errorf("%+v", r)
 			flag = false
 		}
