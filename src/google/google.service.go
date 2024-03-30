@@ -48,6 +48,7 @@ func (service *googleService) FindSheet() (*sheets.ValueRange, error) {
 		logrus.Errorf("Unable to retrieve data from sheet: %v", err)
 		return nil, errors.New(fiber.StatusServiceUnavailable, err.Error())
 	}
+
 	return resp, nil
 }
 

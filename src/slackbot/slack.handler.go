@@ -92,6 +92,10 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	case _const.CommandTypeLeave:
 		err = handler.service.WithTx(tx).OnLeaveCommand(command)
 		responseStr = "was removed from channel"
+		break
+	case _const.CommendRegister:
+		err = handler.service.WithTx(tx).OnRegisterCommand(command)
+		break
 	default:
 		logrus.Errorf("no matching command exists")
 		return c.SendStatus(fiber.StatusBadRequest)

@@ -30,6 +30,7 @@ type Service interface {
 	OnManagerCommand(command slack.SlashCommand) error
 	OnThresholdCommand(command slack.SlashCommand) error
 	OnLeaveCommand(command slack.SlashCommand) error
+	OnRegisterCommand(command slack.SlashCommand) error
 	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
 	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
 	WhoAmI() (*WhoAmI, error)
@@ -378,6 +379,71 @@ func (service *slackService) OnLeaveCommand(command slack.SlashCommand) error {
 	_, leaveErr := service.api.LeaveConversation(command.ChannelID)
 	if leaveErr != nil {
 		return errors.New(fiber.StatusServiceUnavailable, leaveErr.Error())
+	}
+
+	return nil
+}
+
+func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error {
+	titleText := slack.NewTextBlockObject("plain_text", "Aesir", false, false)
+	closeText := slack.NewTextBlockObject("plain_text", "Close", false, false)
+	submitText := slack.NewTextBlockObject("plain_text", "Submit", false, false)
+
+	headerText := slack.NewTextBlockObject("mrkdwn", "Register new VoC", false, false)
+	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+
+	// customer account
+	firstNameText := slack.NewTextBlockObject("plain_text", "First Name", false, false)
+	firstNameHint := slack.NewTextBlockObject("plain_text", "First Name Hint", false, false)
+	firstNamePlaceholder := slack.NewTextBlockObject("plain_text", "Enter your first name", false, false)
+	firstNameElement := slack.NewPlainTextInputBlockElement(firstNamePlaceholder, "firstName")
+	firstName := slack.NewInputBlock("FirstName", firstNameText, firstNameHint, firstNameElement)
+
+	// stakeholder
+	// Build Text Objects associated with each option
+	radioButtonsOptionTextTrue := slack.NewTextBlockObject("plain_text", "O", false, false)
+	radioButtonsOptionTextFalse := slack.NewTextBlockObject("plain_text", "X", false, false)
+
+	// Build each option, providing a value for the option
+	radioButtonsOptionTrue := slack.NewOptionBlockObject("true", radioButtonsOptionTextTrue, nil)
+	radioButtonsOptionFalse := slack.NewOptionBlockObject("false", radioButtonsOptionTextFalse, nil)
+
+	// Build radio button element
+	radioButtonsElement := slack.NewRadioButtonsBlockElement("isStakeholder", radioButtonsOptionTrue, radioButtonsOptionFalse)
+
+	radioLabel := slack.NewTextBlockObject("plain_text", "Stakeholder", false, false)
+	var radioSection *slack.SectionBlock
+
+	radioSection = slack.NewSectionBlock(radioLabel, nil, slack.NewAccessory(radioButtonsElement))
+
+	// VoC
+	vocText := slack.NewTextBlockObject("plain_text", "VoC", false, false)
+	vocHint := slack.NewTextBlockObject("plain_text", "VoC Hint", false, false)
+	vocPlaceholder := slack.NewTextBlockObject("plain_text", "Enter new VoC", false, false)
+	vocElement := slack.NewPlainTextInputBlockElement(vocPlaceholder, "voc")
+	vocElement.Multiline = true
+	voc := slack.NewInputBlock("Last Name", vocText, vocHint, vocElement)
+
+	blocks := slack.Blocks{
+		BlockSet: []slack.Block{
+			headerSection,
+			firstName,
+			radioSection,
+			voc,
+		},
+	}
+
+	var modalRequest slack.ModalViewRequest
+	modalRequest.Type = slack.ViewType("modal")
+	modalRequest.Title = titleText
+	modalRequest.Close = closeText
+	modalRequest.Submit = submitText
+	modalRequest.Blocks = blocks
+
+	_, err := service.api.OpenView(command.TriggerID, modalRequest)
+	if err != nil {
+		logrus.Errorf("%v", err)
+		return errors.New(fiber.StatusBadRequest, err.Error())
 	}
 
 	return nil
