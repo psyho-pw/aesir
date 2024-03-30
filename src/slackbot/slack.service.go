@@ -6,6 +6,7 @@ import (
 	_const "aesir/src/common/const"
 	"aesir/src/common/errors"
 	"aesir/src/common/utils"
+	"aesir/src/google"
 	"aesir/src/messages"
 	"aesir/src/users"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/thoas/go-funk"
+	"google.golang.org/api/sheets/v4"
 	"gorm.io/gorm"
 	"log"
 	"os"
@@ -38,6 +40,7 @@ type Service interface {
 	FindLatestChannelMessage(channelId string) (*slack.Message, error)
 	FindTeamUsers(teamId string) ([]slack.User, error)
 	SendDM(channelNames []string) error
+	FindSheet() (*sheets.ValueRange, error)
 	WithTx(tx *gorm.DB) Service
 }
 
@@ -46,9 +49,16 @@ type slackService struct {
 	userService    users.Service
 	channelService channels.Service
 	messageService messages.Service
+	googleService  google.Service
 }
 
-func NewSlackService(config *common.Config, userService users.Service, channelService channels.Service, messageService messages.Service) Service {
+func NewSlackService(
+	config *common.Config,
+	userService users.Service,
+	channelService channels.Service,
+	messageService messages.Service,
+	googleService google.Service,
+) Service {
 	api := slack.New(
 		config.Slack.BotToken,
 		slack.OptionDebug(true),
@@ -56,7 +66,7 @@ func NewSlackService(config *common.Config, userService users.Service, channelSe
 		slack.OptionAppLevelToken(config.Slack.AppToken),
 	)
 
-	return &slackService{api, userService, channelService, messageService}
+	return &slackService{api, userService, channelService, messageService, googleService}
 }
 
 var SetService = wire.NewSet(NewSlackService)
@@ -549,10 +559,20 @@ func (service *slackService) SendDM(channelNames []string) error {
 	return nil
 }
 
+func (service *slackService) FindSheet() (*sheets.ValueRange, error) {
+	data, err := service.googleService.FindSheet()
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 func (service *slackService) WithTx(tx *gorm.DB) Service {
 	service.userService = service.userService.WithTx(tx)
 	service.channelService = service.channelService.WithTx(tx)
 	service.messageService = service.messageService.WithTx(tx)
+	service.googleService = service.googleService.WithTx(tx)
 
 	return service
 }
