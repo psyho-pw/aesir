@@ -392,42 +392,35 @@ func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error
 	headerText := slack.NewTextBlockObject("mrkdwn", "Register new VoC", false, false)
 	headerSection := slack.NewSectionBlock(headerText, nil, nil)
 
-	// customer account
-	firstNameText := slack.NewTextBlockObject("plain_text", "First Name", false, false)
-	firstNameHint := slack.NewTextBlockObject("plain_text", "First Name Hint", false, false)
-	firstNamePlaceholder := slack.NewTextBlockObject("plain_text", "Enter your first name", false, false)
-	firstNameElement := slack.NewPlainTextInputBlockElement(firstNamePlaceholder, "firstName")
-	firstName := slack.NewInputBlock("FirstName", firstNameText, firstNameHint, firstNameElement)
+	// client account
+	clientLabel := slack.NewTextBlockObject("plain_text", "Client", false, false)
+	clientPlaceholder := slack.NewTextBlockObject("plain_text", "Enter client", false, false)
+	clientElement := slack.NewPlainTextInputBlockElement(clientPlaceholder, "firstName")
+	client := slack.NewInputBlock("Client", clientLabel, nil, clientElement)
 
 	// stakeholder
-	// Build Text Objects associated with each option
 	radioButtonsOptionTextTrue := slack.NewTextBlockObject("plain_text", "O", false, false)
 	radioButtonsOptionTextFalse := slack.NewTextBlockObject("plain_text", "X", false, false)
 
-	// Build each option, providing a value for the option
 	radioButtonsOptionTrue := slack.NewOptionBlockObject("true", radioButtonsOptionTextTrue, nil)
 	radioButtonsOptionFalse := slack.NewOptionBlockObject("false", radioButtonsOptionTextFalse, nil)
 
-	// Build radio button element
 	radioButtonsElement := slack.NewRadioButtonsBlockElement("isStakeholder", radioButtonsOptionTrue, radioButtonsOptionFalse)
 
 	radioLabel := slack.NewTextBlockObject("plain_text", "Stakeholder", false, false)
-	var radioSection *slack.SectionBlock
-
-	radioSection = slack.NewSectionBlock(radioLabel, nil, slack.NewAccessory(radioButtonsElement))
+	radioSection := slack.NewSectionBlock(radioLabel, nil, slack.NewAccessory(radioButtonsElement))
 
 	// VoC
 	vocText := slack.NewTextBlockObject("plain_text", "VoC", false, false)
-	vocHint := slack.NewTextBlockObject("plain_text", "VoC Hint", false, false)
 	vocPlaceholder := slack.NewTextBlockObject("plain_text", "Enter new VoC", false, false)
 	vocElement := slack.NewPlainTextInputBlockElement(vocPlaceholder, "voc")
 	vocElement.Multiline = true
-	voc := slack.NewInputBlock("Last Name", vocText, vocHint, vocElement)
+	voc := slack.NewInputBlock("Last Name", vocText, nil, vocElement)
 
 	blocks := slack.Blocks{
 		BlockSet: []slack.Block{
 			headerSection,
-			firstName,
+			client,
 			radioSection,
 			voc,
 		},
