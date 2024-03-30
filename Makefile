@@ -1,10 +1,14 @@
 BINARY_NAME=aesir
 
 env-up:
-	oci os object put -bn environments --file .env --name ${BINARY_NAME}/.env --no-multipart --force
+	oci os object put -bn environments --file .env/.env.development --name ${BINARY_NAME}/.env/.env.development --no-multipart --force
+	oci os object put -bn environments --file .env/.env.production --name ${BINARY_NAME}/.env/.env.production --no-multipart --force
+	oci os object put -bn environments --file .env/aesir.json --name ${BINARY_NAME}/.env/aesir.json --no-multipart --force
 
 env-down:
-	oci os object get -bn environments --file .env --name ${BINARY_NAME}/.env
+	oci os object get -bn environments --file .env/.env.development --name ${BINARY_NAME}/.env/.env.development
+	oci os object get -bn environments --file .env/.env.production --name ${BINARY_NAME}/.env/.env.production
+	oci os object get -bn environments --file .env/aesir.json --name ${BINARY_NAME}/.env/aesir.json
 
 run:
 	APP_ENV=development go run main.go
