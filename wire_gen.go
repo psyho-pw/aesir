@@ -38,7 +38,7 @@ func New() (*fiber.App, error) {
 	clientsService := clients.NewClientService(clientsRepository)
 	clientsHandler := clients.NewClientHandler(clientsService)
 	googleService := google.NewGoogleService(config)
-	slackService := slack.NewSlackService(config, service, channelsService, messagesService, googleService)
+	slackService := slack.NewSlackService(config, service, channelsService, messagesService, clientsService, googleService)
 	slackHandler := slack.NewSlackHandler(slackService)
 	app := src.NewApp(config, db, handler, channelsHandler, messagesHandler, clientsHandler, slackHandler, googleService)
 	return app, nil

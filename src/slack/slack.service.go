@@ -2,6 +2,7 @@ package slack
 
 import (
 	"aesir/src/channels"
+	"aesir/src/clients"
 	"aesir/src/common"
 	_const "aesir/src/common/const"
 	"aesir/src/common/errors"
@@ -50,6 +51,7 @@ type slackService struct {
 	userService    users.Service
 	channelService channels.Service
 	messageService messages.Service
+	clientService  clients.Service
 	googleService  google.Service
 }
 
@@ -58,6 +60,7 @@ func NewSlackService(
 	userService users.Service,
 	channelService channels.Service,
 	messageService messages.Service,
+	clientService clients.Service,
 	googleService google.Service,
 ) Service {
 	api := slack.New(
@@ -67,7 +70,14 @@ func NewSlackService(
 		slack.OptionAppLevelToken(config.Slack.AppToken),
 	)
 
-	return &slackService{api, userService, channelService, messageService, googleService}
+	return &slackService{
+		api,
+		userService,
+		channelService,
+		messageService,
+		clientService,
+		googleService,
+	}
 }
 
 var SetService = wire.NewSet(NewSlackService)
@@ -391,9 +401,24 @@ func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error
 
 	// client account
 	clientLabel := slack.NewTextBlockObject("plain_text", "Client", false, false)
-	clientPlaceholder := slack.NewTextBlockObject("plain_text", "Enter client", false, false)
-	clientElement := slack.NewPlainTextInputBlockElement(clientPlaceholder, "firstName")
-	client := slack.NewInputBlock("Client", clientLabel, nil, clientElement)
+
+	foundClients, err := service.clientService.FindMany()
+	if err != nil {
+		return err
+	}
+
+	predicate := func(i clients.Client) *slack.OptionBlockObject {
+		option := slack.NewOptionBlockObject(
+			strconv.Itoa(int(i.ID)),
+			slack.NewTextBlockObject("plain_text", i.ClientName, false, false),
+			nil,
+		)
+		return option
+	}
+
+	clientOptions := funk.Map(foundClients, predicate).([]*slack.OptionBlockObject)
+	clientSelectElement := slack.NewOptionsSelectBlockElement("static_select", nil, "clientSelect", clientOptions...)
+	client := slack.NewInputBlock("Client", clientLabel, nil, clientSelectElement)
 
 	// stakeholder
 	radioButtonsOptionTextTrue := slack.NewTextBlockObject("plain_text", "O", false, false)
@@ -435,7 +460,7 @@ func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error
 	modalRequest.Submit = submitText
 	modalRequest.Blocks = blocks
 
-	_, err := service.api.OpenView(command.TriggerID, modalRequest)
+	_, err = service.api.OpenView(command.TriggerID, modalRequest)
 	if err != nil {
 		logrus.Errorf("%v", err)
 		return errors.New(fiber.StatusBadRequest, err.Error())
@@ -633,6 +658,7 @@ func (service *slackService) WithTx(tx *gorm.DB) Service {
 	service.userService = service.userService.WithTx(tx)
 	service.channelService = service.channelService.WithTx(tx)
 	service.messageService = service.messageService.WithTx(tx)
+	service.clientService = service.clientService.WithTx(tx)
 	service.googleService = service.googleService.WithTx(tx)
 
 	return service
