@@ -2,6 +2,7 @@ package database
 
 import (
 	"aesir/src/channels"
+	"aesir/src/clients"
 	"aesir/src/common"
 	"aesir/src/messages"
 	"aesir/src/users"
@@ -38,10 +39,12 @@ func NewDB(config *common.Config) *gorm.DB {
 		panic(err)
 	}
 
-	var migrationError error
-	migrationError = connection.AutoMigrate(users.User{})
-	migrationError = connection.AutoMigrate(messages.Message{})
-	migrationError = connection.AutoMigrate(channels.Channel{})
+	migrationError := connection.AutoMigrate(
+		users.User{},
+		messages.Message{},
+		channels.Channel{},
+		clients.Client{},
+	)
 	if migrationError != nil {
 		panic(err)
 	}

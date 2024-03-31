@@ -1,4 +1,4 @@
-package slackbot
+package slack
 
 import (
 	_const "aesir/src/common/const"
@@ -93,7 +93,7 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 		err = handler.service.WithTx(tx).OnLeaveCommand(command)
 		responseStr = "was removed from channel"
 		break
-	case _const.CommendRegister:
+	case _const.CommandTypeRegister:
 		err = handler.service.WithTx(tx).OnRegisterCommand(command)
 		break
 	default:

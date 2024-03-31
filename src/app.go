@@ -2,12 +2,13 @@ package src
 
 import (
 	"aesir/src/channels"
+	"aesir/src/clients"
 	"aesir/src/common"
 	"aesir/src/common/database"
 	"aesir/src/common/middlewares"
 	"aesir/src/google"
 	"aesir/src/messages"
-	"aesir/src/slackbot"
+	"aesir/src/slack"
 	"aesir/src/users"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/compress"
@@ -32,8 +33,11 @@ var AppSet = wire.NewSet(
 	messages.SetRepository,
 	messages.SetService,
 	messages.SetHandler,
-	slackbot.SetService,
-	slackbot.SetHandler,
+	clients.SetRepository,
+	clients.SetService,
+	clients.SetHandler,
+	slack.SetService,
+	slack.SetHandler,
 	google.SetService,
 	NewApp,
 )
@@ -44,7 +48,8 @@ func NewApp(
 	userHandler users.Handler,
 	channelHandler channels.Handler,
 	messageHandler messages.Handler,
-	slackHandler slackbot.Handler,
+	clientHandler clients.Handler,
+	slackHandler slack.Handler,
 	googleService google.Service,
 ) *fiber.App {
 	app := fiber.New(config.Fiber)
@@ -80,7 +85,8 @@ func NewApp(
 	users.NewRouter(v1.Group("/users"), db, userHandler)
 	channels.NewRouter(v1.Group("/channels"), db, channelHandler)
 	messages.NewRouter(v1.Group("/messages"), db, messageHandler)
-	slackbot.NewRouter(v1.Group("/slack"), db, slackHandler)
+	clients.NewRouter(v1.Group("/clients"), db, clientHandler)
+	slack.NewRouter(v1.Group("/slack"), db, slackHandler)
 
 	//err := cronService.Start()
 	//if err != nil {

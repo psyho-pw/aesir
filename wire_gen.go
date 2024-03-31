@@ -9,11 +9,12 @@ package main
 import (
 	"aesir/src"
 	"aesir/src/channels"
+	"aesir/src/clients"
 	"aesir/src/common"
 	"aesir/src/common/database"
 	"aesir/src/google"
 	"aesir/src/messages"
-	"aesir/src/slackbot"
+	"aesir/src/slack"
 	"aesir/src/users"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
@@ -33,10 +34,13 @@ func New() (*fiber.App, error) {
 	messagesRepository := messages.NewMessageRepository(db)
 	messagesService := messages.NewMessageService(messagesRepository)
 	messagesHandler := messages.NewMessageHandler(messagesService)
+	clientsRepository := clients.NewClientRepository(db)
+	clientsService := clients.NewClientService(clientsRepository)
+	clientsHandler := clients.NewClientHandler(clientsService)
 	googleService := google.NewGoogleService(config)
-	slackbotService := slackbot.NewSlackService(config, service, channelsService, messagesService, googleService)
-	slackbotHandler := slackbot.NewSlackHandler(slackbotService)
-	app := src.NewApp(config, db, handler, channelsHandler, messagesHandler, slackbotHandler, googleService)
+	slackService := slack.NewSlackService(config, service, channelsService, messagesService, googleService)
+	slackHandler := slack.NewSlackHandler(slackService)
+	app := src.NewApp(config, db, handler, channelsHandler, messagesHandler, clientsHandler, slackHandler, googleService)
 	return app, nil
 }
 

@@ -18,6 +18,7 @@ require (
 	google.golang.org/api v0.172.0
 	gorm.io/driver/mysql v1.5.6
 	gorm.io/gorm v1.25.9
+	gorm.io/plugin/soft_delete v1.2.1
 )
 
 require (

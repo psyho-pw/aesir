@@ -1,4 +1,4 @@
-package slackbot
+package slack
 
 import (
 	"aesir/src/channels"
@@ -385,10 +385,7 @@ func (service *slackService) OnLeaveCommand(command slack.SlashCommand) error {
 }
 
 func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error {
-	titleText := slack.NewTextBlockObject("plain_text", "Aesir", false, false)
-	closeText := slack.NewTextBlockObject("plain_text", "Close", false, false)
-	submitText := slack.NewTextBlockObject("plain_text", "Submit", false, false)
-
+	// header
 	headerText := slack.NewTextBlockObject("mrkdwn", "Register new VoC", false, false)
 	headerSection := slack.NewSectionBlock(headerText, nil, nil)
 
@@ -425,6 +422,11 @@ func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error
 			voc,
 		},
 	}
+
+	// modal texts
+	titleText := slack.NewTextBlockObject("plain_text", "Aesir", false, false)
+	closeText := slack.NewTextBlockObject("plain_text", "Close", false, false)
+	submitText := slack.NewTextBlockObject("plain_text", "Submit", false, false)
 
 	var modalRequest slack.ModalViewRequest
 	modalRequest.Type = slack.ViewType("modal")
