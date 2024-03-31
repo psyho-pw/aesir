@@ -8,6 +8,7 @@ import (
 	"aesir/src/common/errors"
 	"aesir/src/common/utils"
 	"aesir/src/google"
+	"aesir/src/google/dto"
 	"aesir/src/messages"
 	"aesir/src/users"
 	"fmt"
@@ -529,6 +530,15 @@ func (service *slackService) OnInteractionTypeVoCViewSubmit(user *slack.User, st
 	})
 
 	//TODO write info to google sheet
+	appendErr := service.googleService.AppendRow(&dto.CreateVoCDto{
+		User:          userWithDetails,
+		Client:        client,
+		IsStakeholder: isStakeholder,
+		VocContent:    vocContent,
+	})
+	if appendErr != nil {
+		return err
+	}
 
 	return nil
 }
