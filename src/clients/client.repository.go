@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	Create(client Client) (*Client, error)
 	FindMany() ([]Client, error)
+	FindOne(id int) (*Client, error)
 	DeleteOne(id int) (*Client, error)
 	WithTx(tx *gorm.DB) Repository
 }
@@ -44,6 +45,19 @@ func (repository *clientRepository) FindMany() ([]Client, error) {
 	}
 
 	return clients, nil
+}
+
+func (repository *clientRepository) FindOne(id int) (*Client, error) {
+	var client Client
+	result := repository.DB.Find(&client, id)
+	if result.Error != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, result.Error.Error())
+	}
+	if result.RowsAffected == 0 {
+		return nil, errors.New(fiber.StatusNotFound, "Not affected")
+	}
+
+	return &client, nil
 }
 
 func (repository *clientRepository) DeleteOne(id int) (*Client, error) {

@@ -10,7 +10,6 @@ import (
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"gorm.io/gorm"
-	"log"
 	"net/url"
 )
 
@@ -108,25 +107,7 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).SendString(responseStr)
 }
 
-func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
-	tx := c.Locals("TX").(*gorm.DB)
-	jsonStr, escapeErr := url.QueryUnescape(string(c.Body())[8:])
-	if escapeErr != nil {
-		log.Printf("[ERROR] Failed to unescape request body: %s", escapeErr)
-		return escapeErr
-	}
-
-	var message slack.InteractionCallback
-	if unmarshalErr := json.Unmarshal([]byte(jsonStr), &message); unmarshalErr != nil {
-		log.Printf("[ERROR] Failed to decode json message from slack: %s", jsonStr)
-		return unmarshalErr
-	}
-
-	if message.Type != "block_actions" {
-		logrus.Errorf("no matching interaction handler exists")
-		return c.SendStatus(fiber.StatusBadRequest)
-	}
-
+func (handler slackHandler) handleBlockAction(c *fiber.Ctx, message *slack.InteractionCallback, tx *gorm.DB) error {
 	action := *message.ActionCallback.BlockActions[0]
 	var err error
 	switch action.ActionID {
@@ -137,7 +118,7 @@ func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
 		err = handler.service.WithTx(tx).OnInteractionTypeThresholdSelect(&action.SelectedOption)
 		break
 	default:
-		logrus.Errorf("no matching interaction handler exists")
+		logrus.Errorf("no matching block action handler exists")
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
 
@@ -146,6 +127,54 @@ func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).Send(nil)
+}
+
+func (handler slackHandler) handleViewSubmission(c *fiber.Ctx, message *slack.InteractionCallback, tx *gorm.DB) error {
+	callBackId := message.View.CallbackID
+
+	var err error
+	switch callBackId {
+	case _const.InteractionTypeVoCViewSubmit:
+		err = handler.service.WithTx(tx).OnInteractionTypeVoCViewSubmit(&message.User, message.View.State)
+		break
+	default:
+		logrus.Errorf("no matching view submission handler exists")
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return c.Status(fiber.StatusOK).Send(nil)
+}
+
+func (handler slackHandler) InteractionMux(c *fiber.Ctx) error {
+	tx := c.Locals("TX").(*gorm.DB)
+	jsonStr, escapeErr := url.QueryUnescape(string(c.Body())[8:])
+	if escapeErr != nil {
+		logrus.Errorf("[ERROR] Failed to unescape request body: %s", escapeErr)
+		return escapeErr
+	}
+
+	var message *slack.InteractionCallback
+	if unmarshalErr := json.Unmarshal([]byte(jsonStr), &message); unmarshalErr != nil {
+		logrus.Errorf("[ERROR] Failed to decode json message from slack: %s", jsonStr)
+		return unmarshalErr
+	}
+
+	//utils.PrettyPrint(message)
+
+	switch message.Type {
+	case slack.InteractionTypeBlockActions:
+		return handler.handleBlockAction(c, message, tx)
+	case slack.InteractionTypeViewSubmission:
+		return handler.handleViewSubmission(c, message, tx)
+
+	default:
+		logrus.Errorf("no matching interaction handler exists")
+		return c.SendStatus(fiber.StatusBadRequest)
+	}
 }
 
 func (handler slackHandler) WhoAmI(c *fiber.Ctx) error {

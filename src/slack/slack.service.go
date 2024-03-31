@@ -34,6 +34,7 @@ type Service interface {
 	OnRegisterCommand(command slack.SlashCommand) error
 	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
 	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
+	OnInteractionTypeVoCViewSubmit(user *slack.User, state *slack.ViewState) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -407,16 +408,16 @@ func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error
 		return err
 	}
 
-	predicate := func(i clients.Client) *slack.OptionBlockObject {
+	clientOptions := funk.Map(foundClients, func(i clients.Client) *slack.OptionBlockObject {
 		option := slack.NewOptionBlockObject(
 			strconv.Itoa(int(i.ID)),
 			slack.NewTextBlockObject("plain_text", i.ClientName, false, false),
 			nil,
 		)
 		return option
-	}
+	},
+	).([]*slack.OptionBlockObject)
 
-	clientOptions := funk.Map(foundClients, predicate).([]*slack.OptionBlockObject)
 	clientSelectElement := slack.NewOptionsSelectBlockElement("static_select", nil, "clientSelect", clientOptions...)
 	client := slack.NewInputBlock("Client", clientLabel, nil, clientSelectElement)
 
@@ -427,23 +428,25 @@ func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error
 	radioButtonsOptionTrue := slack.NewOptionBlockObject("true", radioButtonsOptionTextTrue, nil)
 	radioButtonsOptionFalse := slack.NewOptionBlockObject("false", radioButtonsOptionTextFalse, nil)
 
-	radioButtonsElement := slack.NewRadioButtonsBlockElement("isStakeholder", radioButtonsOptionTrue, radioButtonsOptionFalse)
+	radioButtonsElement := slack.NewRadioButtonsBlockElement("test", radioButtonsOptionTrue, radioButtonsOptionFalse)
+	// set initial value
+	radioButtonsElement.InitialOption = radioButtonsOptionFalse
 
-	radioLabel := slack.NewTextBlockObject("plain_text", "Stakeholder", false, false)
-	radioSection := slack.NewSectionBlock(radioLabel, nil, slack.NewAccessory(radioButtonsElement))
+	isStakeholderLabel := slack.NewTextBlockObject("plain_text", "Stakeholder", false, false)
+	isStakeholder := slack.NewInputBlock("IsStakeholder", isStakeholderLabel, nil, radioButtonsElement)
 
 	// VoC
 	vocText := slack.NewTextBlockObject("plain_text", "VoC", false, false)
 	vocPlaceholder := slack.NewTextBlockObject("plain_text", "Enter new VoC", false, false)
 	vocElement := slack.NewPlainTextInputBlockElement(vocPlaceholder, "voc")
 	vocElement.Multiline = true
-	voc := slack.NewInputBlock("Last Name", vocText, nil, vocElement)
+	voc := slack.NewInputBlock("VoC", vocText, nil, vocElement)
 
 	blocks := slack.Blocks{
 		BlockSet: []slack.Block{
 			headerSection,
 			client,
-			radioSection,
+			isStakeholder,
 			voc,
 		},
 	}
@@ -459,6 +462,7 @@ func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error
 	modalRequest.Close = closeText
 	modalRequest.Submit = submitText
 	modalRequest.Blocks = blocks
+	modalRequest.CallbackID = _const.InteractionTypeVoCViewSubmit
 
 	_, err = service.api.OpenView(command.TriggerID, modalRequest)
 	if err != nil {
@@ -494,6 +498,37 @@ func (service *slackService) OnInteractionTypeThresholdSelect(selectedOption *sl
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (service *slackService) OnInteractionTypeVoCViewSubmit(user *slack.User, state *slack.ViewState) error {
+	clientId, parseErr := strconv.Atoi(state.Values["Client"]["clientSelect"].SelectedOption.Value)
+	if parseErr != nil {
+		return errors.New(fiber.StatusBadRequest, parseErr.Error())
+	}
+
+	isStakeholder := state.Values["IsStakeholder"]["test"].SelectedOption.Value == "true"
+	vocContent := state.Values["VoC"]["voc"].Value
+
+	client, err := service.clientService.FindOne(clientId)
+	if err != nil {
+		return err
+	}
+
+	userWithDetails, apiErr := service.findUserBySlackId(user.ID)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	utils.PrettyPrint([]interface{}{
+		userWithDetails.RealName,
+		client.ClientName,
+		isStakeholder,
+		vocContent,
+	})
+
+	//TODO write info to google sheet
 
 	return nil
 }
@@ -612,6 +647,15 @@ func (service *slackService) FindTeamUsers(teamId string) ([]slack.User, error) 
 	}
 
 	return funk.Filter(usersResponse, predicate).([]slack.User), nil
+}
+
+func (service *slackService) findUserBySlackId(slackId string) (*slack.User, error) {
+	user, err := service.api.GetUserInfo(slackId)
+	if err != nil {
+		return nil, errors.New(fiber.StatusServiceUnavailable, err.Error())
+	}
+
+	return user, nil
 }
 
 func (service *slackService) SendDM(channelNames []string) error {
