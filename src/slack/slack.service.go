@@ -529,7 +529,6 @@ func (service *slackService) OnInteractionTypeVoCViewSubmit(user *slack.User, st
 		vocContent,
 	})
 
-	//TODO write info to google sheet
 	appendErr := service.googleService.AppendRow(&dto.CreateVoCDto{
 		User:          userWithDetails,
 		Client:        client,

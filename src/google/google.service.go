@@ -72,6 +72,7 @@ func (service *googleService) AppendRow(createVoCDto *dto.CreateVoCDto) error {
 
 	resp, err := service.sheetClient.Spreadsheets.Values.Append(service.config.Google.SpreadSheetId, appendRange, &row).ValueInputOption(valueInputOption).InsertDataOption(insertDataOption).Do()
 	if err != nil {
+		//TODO test error propagation
 		utils.PrettyPrint(err)
 		return errors.New(fiber.StatusInternalServerError, err.Error())
 	}
