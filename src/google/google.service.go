@@ -15,6 +15,7 @@ import (
 	"time"
 )
 
+//go:generate mockery --name Service --case underscore --inpackage
 type Service interface {
 	FindSheet() (*sheets.ValueRange, error)
 	AppendRow(createVoCDto *dto.CreateVoCDto) error

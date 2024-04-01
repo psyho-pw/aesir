@@ -316,7 +316,7 @@ func (service *slackService) OnManagerCommand(command slack.SlashCommand) error 
 	}
 
 	var modalRequest slack.ModalViewRequest
-	modalRequest.Type = slack.ViewType("modal")
+	modalRequest.Type = slack.VTModal
 	modalRequest.Title = titleText
 	modalRequest.Close = closeText
 	modalRequest.Blocks = *blocks
@@ -368,7 +368,7 @@ func (service *slackService) OnThresholdCommand(command slack.SlashCommand) erro
 	}
 
 	var modalRequest slack.ModalViewRequest
-	modalRequest.Type = slack.ViewType("modal")
+	modalRequest.Type = slack.VTModal
 	modalRequest.Title = titleText
 	modalRequest.Close = closeText
 	modalRequest.Blocks = *blocks
@@ -458,7 +458,7 @@ func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error
 	submitText := slack.NewTextBlockObject("plain_text", "Submit", false, false)
 
 	var modalRequest slack.ModalViewRequest
-	modalRequest.Type = slack.ViewType("modal")
+	modalRequest.Type = slack.VTModal
 	modalRequest.Title = titleText
 	modalRequest.Close = closeText
 	modalRequest.Submit = submitText
