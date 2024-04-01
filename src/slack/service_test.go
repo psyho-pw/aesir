@@ -1,8 +1,10 @@
-package slackbot
+package slack
 
 import (
 	"aesir/src/channels"
+	"aesir/src/clients"
 	"aesir/src/common"
+	"aesir/src/google"
 	"aesir/src/messages"
 	"aesir/src/users"
 	"fmt"
@@ -15,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"os"
 	"testing"
 	"time"
 )
@@ -25,6 +28,8 @@ type SlackbotSuit struct {
 	userService    *users.MockService
 	channelService *channels.MockService
 	messageService *messages.MockService
+	googleService  *google.MockService
+	clientService  *clients.MockService
 	service        Service
 	userId         string
 	teamId         string
@@ -46,7 +51,14 @@ var mockChannel *channels.Channel = &channels.Channel{
 }
 
 func (suite *SlackbotSuit) SetupSuite() {
-	err := godotenv.Load("../../.env")
+	appEnv := os.Getenv("APP_ENV")
+	suite.T().Log("Env: " + appEnv)
+	currentWorkDirectory, _ := os.Getwd()
+	path := currentWorkDirectory + `/../../` + `.env/.env.` + appEnv
+	err := godotenv.Load(path)
+	//testing.
+	suite.T().Log(path)
+
 	if err != nil {
 		panic("Error loading .env file")
 	}
@@ -61,6 +73,8 @@ func (suite *SlackbotSuit) SetupSuite() {
 		suite.userService,
 		suite.channelService,
 		suite.messageService,
+		suite.clientService,
+		suite.googleService,
 	)
 	whoAmI, initializeErr := suite.service.WhoAmI()
 	suite.userId = whoAmI.UserID

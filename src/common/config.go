@@ -2,7 +2,6 @@ package common
 
 import (
 	"aesir/src/common/middlewares"
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 	"github.com/gofiber/fiber/v2/utils"
@@ -10,7 +9,6 @@ import (
 	"github.com/mattn/go-colorable"
 	"github.com/natefinch/lumberjack"
 	log "github.com/sirupsen/logrus"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -35,28 +33,9 @@ type DiscordConfig struct {
 	WebhookUrl string
 }
 
-type OpenApiConfig struct {
-	Token      string
-	BaseUrl    string
-	Resource   string
-	BaseParams url.Values
-}
-
-func (openApiConfig *OpenApiConfig) GetUrl(now time.Time) (string, error) {
-	params := url.Values{}
-	for key, value := range openApiConfig.BaseParams {
-		params[key] = value
-	}
-
-	params.Add("solYear", strconv.Itoa(now.Year()))
-	params.Add("solMonth", fmt.Sprintf("%.2d", now.Month()))
-
-	uri, _ := url.ParseRequestURI(openApiConfig.BaseUrl)
-	uri.Path = openApiConfig.Resource
-	uri.RawQuery = params.Encode()
-	uriStr := fmt.Sprintf("%v", uri)
-
-	return uriStr, nil
+type GoogleConfig struct {
+	CredentialFilePath string
+	SpreadSheetId      string
 }
 
 type Config struct {
@@ -67,7 +46,7 @@ type Config struct {
 	Csrf    csrf.Config
 	Slack   SlackConfig
 	Discord DiscordConfig
-	OpenApi OpenApiConfig
+	Google  GoogleConfig
 }
 
 func fiberConfig(webhookUrl string) fiber.Config {
@@ -186,19 +165,12 @@ func discordConfig() DiscordConfig {
 	}
 }
 
-func openApiConfig() OpenApiConfig {
-	token := os.Getenv("OPENAPI_TOKEN")
-	params := url.Values{}
-	params.Add("ServiceKey", token)
-	params.Add("_type", "json")
-	params.Add("pageNo", "1")
-	params.Add("numOfRows", "31")
+func googleConfig() GoogleConfig {
+	currentWorkDirectory, _ := os.Getwd()
 
-	return OpenApiConfig{
-		Token:      token,
-		BaseUrl:    os.Getenv("OPENAPI_BASEURL"),
-		Resource:   os.Getenv("OPENAPI_RESOURCE_RESTDAY"),
-		BaseParams: params,
+	return GoogleConfig{
+		CredentialFilePath: currentWorkDirectory + `/.env/aesir.json`,
+		SpreadSheetId:      os.Getenv("SHEET_ID"),
 	}
 }
 
@@ -220,7 +192,7 @@ func NewConfig() *Config {
 		Csrf:    csrfConfig(),
 		Slack:   slackConfig(),
 		Discord: discordConfig(),
-		OpenApi: openApiConfig(),
+		Google:  googleConfig(),
 	}
 
 	return &config

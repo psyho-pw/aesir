@@ -14,7 +14,8 @@ func init() {
 		return
 	}
 
-	err := godotenv.Load()
+	currentWorkDirectory, _ := os.Getwd()
+	err := godotenv.Load(currentWorkDirectory + `/.env/.env.` + appEnv)
 	if err != nil {
 		panic("Error loading .env file")
 	}

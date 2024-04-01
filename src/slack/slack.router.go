@@ -1,4 +1,4 @@
-package slackbot
+package slack
 
 import (
 	"aesir/src/common/middlewares"
@@ -16,4 +16,5 @@ func NewRouter(router fiber.Router, db *gorm.DB, handler Handler) {
 	router.Get("/teams/:teamId/channels/:channelId", middlewares.TxMiddleware(db), handler.FindChannelById)
 	router.Get("/teams/:teamId/channels/:channelId/messages/latest", middlewares.TxMiddleware(db), handler.FindLatestChannelMessage)
 	router.Get("/teams/:teamId/users", middlewares.TxMiddleware(db), handler.FindTeamUsers)
+	router.Get("/google/sheets", middlewares.TxMiddleware(db), handler.FindSheet)
 }
