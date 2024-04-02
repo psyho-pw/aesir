@@ -5,5 +5,5 @@ const (
 	CommandTypeThreshold = "threshold"
 	CommandTypeLeave     = "leave"
 	MaxSelectedItems     = 10
-	CommandTypeRegister  = "register"
+	CommandTypeVoC       = "voc"
 )

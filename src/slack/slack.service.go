@@ -32,7 +32,7 @@ type Service interface {
 	OnManagerCommand(command slack.SlashCommand) error
 	OnThresholdCommand(command slack.SlashCommand) error
 	OnLeaveCommand(command slack.SlashCommand) error
-	OnRegisterCommand(command slack.SlashCommand) error
+	OnVoCCommand(command slack.SlashCommand) error
 	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
 	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
 	OnInteractionTypeVoCViewSubmit(user *slack.User, state *slack.ViewState) error
@@ -396,7 +396,7 @@ func (service *slackService) OnLeaveCommand(command slack.SlashCommand) error {
 	return nil
 }
 
-func (service *slackService) OnRegisterCommand(command slack.SlashCommand) error {
+func (service *slackService) OnVoCCommand(command slack.SlashCommand) error {
 	// header
 	headerText := slack.NewTextBlockObject("mrkdwn", "Register new VoC", false, false)
 	headerSection := slack.NewSectionBlock(headerText, nil, nil)
