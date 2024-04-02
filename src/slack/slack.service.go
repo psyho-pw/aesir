@@ -33,6 +33,7 @@ type Service interface {
 	OnThresholdCommand(command slack.SlashCommand) error
 	OnLeaveCommand(command slack.SlashCommand) error
 	OnVoCCommand(command slack.SlashCommand) error
+	OnClientCommand(command slack.SlashCommand) error
 	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
 	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
 	OnInteractionTypeVoCViewSubmit(user *slack.User, state *slack.ViewState) error
@@ -467,6 +468,57 @@ func (service *slackService) OnVoCCommand(command slack.SlashCommand) error {
 
 	_, err = service.api.OpenView(command.TriggerID, modalRequest)
 	if err != nil {
+		logrus.Errorf("%v", err)
+		return errors.New(fiber.StatusBadRequest, err.Error())
+	}
+
+	return nil
+}
+
+func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
+	// header
+	headerText := slack.NewTextBlockObject("mrkdwn", "Manage clients", false, false)
+	headerSection := slack.NewSectionBlock(headerText, nil, nil)
+
+	foundClients, err := service.clientService.FindMany()
+	if err != nil {
+		return err
+	}
+
+	blocks := slack.Blocks{
+		BlockSet: []slack.Block{
+			headerSection,
+		},
+	}
+
+	clientSections := funk.Map(foundClients, func(i clients.Client) *slack.SectionBlock {
+		sectionText := slack.NewTextBlockObject("mrkdwn", i.ClientName, false, false)
+		deleteBtn := slack.NewButtonBlockElement("client-delete", strconv.Itoa(int(i.ID)), slack.NewTextBlockObject("plain_text", "Delete", false, false))
+		section := slack.NewSectionBlock(sectionText, nil, slack.NewAccessory(deleteBtn))
+		return section
+	},
+	).([]*slack.SectionBlock)
+
+	for _, section := range clientSections {
+		blocks.BlockSet = append(blocks.BlockSet, section)
+	}
+
+	//clientText := slack.NewTextBlockObject("plain_text", "new client", false, false)
+	//clientPlaceholder := slack.NewTextBlockObject("plain_text", "Enter new Client", false, false)
+	//clientElement := slack.NewPlainTextInputBlockElement(clientPlaceholder, "create-client")
+	//client := slack.NewInputBlock("testsetset", clientText, nil, nil)
+
+	//blocks.BlockSet = append(blocks.BlockSet, slack.NewSectionBlock(nil, nil, nil))
+
+	var modalRequest slack.ModalViewRequest
+	modalRequest.Type = slack.VTModal
+	modalRequest.Title = slack.NewTextBlockObject("plain_text", "Aesir", false, false)
+	modalRequest.Blocks = blocks
+	modalRequest.CallbackID = _const.InteractionTypeVoCViewSubmit
+
+	_, slackErr := service.api.OpenView(command.TriggerID, modalRequest)
+	if slackErr != nil {
+		logrus.Errorf(":::::::::::::::::::")
 		logrus.Errorf("%v", err)
 		return errors.New(fiber.StatusBadRequest, err.Error())
 	}

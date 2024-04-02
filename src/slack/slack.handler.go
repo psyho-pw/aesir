@@ -95,6 +95,8 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 	case _const.CommandTypeVoC:
 		err = handler.service.WithTx(tx).OnVoCCommand(command)
 		break
+	case _const.CommandTypeClient:
+		err = handler.service.WithTx(tx).OnClientCommand(command)
 	default:
 		logrus.Errorf("no matching command exists")
 		return c.SendStatus(fiber.StatusBadRequest)

@@ -6,4 +6,5 @@ const (
 	CommandTypeLeave     = "leave"
 	MaxSelectedItems     = 10
 	CommandTypeVoC       = "voc"
+	CommandTypeClient    = "client"
 )
