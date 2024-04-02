@@ -11,6 +11,7 @@ import (
 	"aesir/src/google/dto"
 	"aesir/src/messages"
 	"aesir/src/users"
+	"encoding/json"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/wire"
@@ -476,51 +477,82 @@ func (service *slackService) OnVoCCommand(command slack.SlashCommand) error {
 }
 
 func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
-	// header
-	headerText := slack.NewTextBlockObject("mrkdwn", "Manage clients", false, false)
-	headerSection := slack.NewSectionBlock(headerText, nil, nil)
-
 	foundClients, err := service.clientService.FindMany()
 	if err != nil {
 		return err
 	}
 
-	blocks := slack.Blocks{
-		BlockSet: []slack.Block{
-			headerSection,
-		},
-	}
+	input := slack.NewInputBlock(
+		"addNewClient",
+		slack.NewTextBlockObject(
+			"plain_text",
+			"Add new client",
+			false,
+			false,
+		),
+		nil,
+		slack.NewPlainTextInputBlockElement(
+			slack.NewTextBlockObject("plain_text", "Enter new client", false, false),
+			"clientInputChange",
+		),
+	)
+
+	saveBtnElement := slack.NewButtonBlockElement(
+		"client-save",
+		"",
+		slack.NewTextBlockObject("plain_text", "Save", false, false),
+	)
+	saveBtnElement.Style = "primary"
+
+	saveBtn := slack.NewSectionBlock(
+		slack.NewTextBlockObject("mrkdwn", "-", false, false),
+		nil,
+		slack.NewAccessory(saveBtnElement),
+	)
 
 	clientSections := funk.Map(foundClients, func(i clients.Client) *slack.SectionBlock {
-		sectionText := slack.NewTextBlockObject("mrkdwn", i.ClientName, false, false)
 		deleteBtn := slack.NewButtonBlockElement("client-delete", strconv.Itoa(int(i.ID)), slack.NewTextBlockObject("plain_text", "Delete", false, false))
-		section := slack.NewSectionBlock(sectionText, nil, slack.NewAccessory(deleteBtn))
+		deleteBtn.Style = "danger"
+
+		section := slack.NewSectionBlock(
+			slack.NewTextBlockObject("mrkdwn", i.ClientName, false, false),
+			nil,
+			slack.NewAccessory(deleteBtn),
+		)
+
 		return section
 	},
 	).([]*slack.SectionBlock)
 
-	for _, section := range clientSections {
-		blocks.BlockSet = append(blocks.BlockSet, section)
+	// initial blocks with header
+	blocks := slack.Blocks{
+		BlockSet: []slack.Block{
+			slack.NewSectionBlock(
+				slack.NewTextBlockObject("mrkdwn", "Manage clients", false, false),
+				nil,
+				nil,
+			),
+		},
 	}
-
-	//clientText := slack.NewTextBlockObject("plain_text", "new client", false, false)
-	//clientPlaceholder := slack.NewTextBlockObject("plain_text", "Enter new Client", false, false)
-	//clientElement := slack.NewPlainTextInputBlockElement(clientPlaceholder, "create-client")
-	//client := slack.NewInputBlock("testsetset", clientText, nil, nil)
-
-	//blocks.BlockSet = append(blocks.BlockSet, slack.NewSectionBlock(nil, nil, nil))
+	// append client list
+	for _, section := range clientSections {
+		blocks.BlockSet = append(blocks.BlockSet, section, slack.NewDividerBlock())
+	}
+	// append divider block, input and save btn
+	blocks.BlockSet = append(blocks.BlockSet, slack.NewDividerBlock(), input, saveBtn)
 
 	var modalRequest slack.ModalViewRequest
 	modalRequest.Type = slack.VTModal
 	modalRequest.Title = slack.NewTextBlockObject("plain_text", "Aesir", false, false)
 	modalRequest.Blocks = blocks
+	modalRequest.Submit = slack.NewTextBlockObject("plain_text", "Ok", false, false)
 	modalRequest.CallbackID = _const.InteractionTypeVoCViewSubmit
 
 	_, slackErr := service.api.OpenView(command.TriggerID, modalRequest)
 	if slackErr != nil {
-		logrus.Errorf(":::::::::::::::::::")
-		logrus.Errorf("%v", err)
-		return errors.New(fiber.StatusBadRequest, err.Error())
+		errJson, _ := json.MarshalIndent(map[string]interface{}{"err": slackErr}, "", "    ")
+		logrus.Errorf(string(errJson))
+		return errors.New(fiber.StatusBadRequest, slackErr.Error())
 	}
 
 	return nil
