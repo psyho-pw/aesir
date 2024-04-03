@@ -511,7 +511,11 @@ func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
 	)
 
 	clientSections := funk.Map(foundClients, func(i clients.Client) *slack.SectionBlock {
-		deleteBtn := slack.NewButtonBlockElement("client-delete", strconv.Itoa(int(i.ID)), slack.NewTextBlockObject("plain_text", "Delete", false, false))
+		deleteBtn := slack.NewButtonBlockElement(
+			"client-delete",
+			strconv.Itoa(int(i.ID)),
+			slack.NewTextBlockObject("plain_text", "Delete", false, false),
+		)
 		deleteBtn.Style = "danger"
 
 		section := slack.NewSectionBlock(
