@@ -11,6 +11,7 @@ import (
 	"github.com/slack-go/slack/slackevents"
 	"gorm.io/gorm"
 	"net/url"
+	"strconv"
 )
 
 type Handler interface {
@@ -111,24 +112,28 @@ func (handler slackHandler) CommandMux(c *fiber.Ctx) error {
 
 func (handler slackHandler) handleBlockAction(c *fiber.Ctx, message *slack.InteractionCallback, tx *gorm.DB) error {
 	action := *message.ActionCallback.BlockActions[0]
-	var err error
+	logrus.Debugf("%v", action.Value)
 	switch action.ActionID {
 	case _const.InteractionTypeManagerSelect:
-		err = handler.service.WithTx(tx).OnInteractionTypeManagerSelect(&action.SelectedOptions)
-		break
+		return handler.service.WithTx(tx).OnInteractionTypeManagerSelect(&action.SelectedOptions)
+
 	case _const.InteractionTypeThresholdSelect:
-		err = handler.service.WithTx(tx).OnInteractionTypeThresholdSelect(&action.SelectedOption)
-		break
+		return handler.service.WithTx(tx).OnInteractionTypeThresholdSelect(&action.SelectedOption)
+
+	case _const.InteractionTypeClientCreate:
+		return handler.service.WithTx(tx).OnInteractionTypeClientCreate(message.View.ID, message.View.State)
+
+	case _const.InteractionTypeClientDelete:
+		clientId, err := strconv.Atoi(action.Value)
+		if err != nil {
+			return err
+		}
+		return handler.service.WithTx(tx).OnInteractionTypeClientDelete(message.View.ID, clientId)
+
 	default:
 		logrus.Errorf("no matching block action handler exists")
 		return c.SendStatus(fiber.StatusBadRequest)
 	}
-
-	if err != nil {
-		return err
-	}
-
-	return c.Status(fiber.StatusOK).Send(nil)
 }
 
 func (handler slackHandler) handleViewSubmission(c *fiber.Ctx, message *slack.InteractionCallback, tx *gorm.DB) error {

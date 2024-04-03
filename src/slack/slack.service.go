@@ -38,6 +38,8 @@ type Service interface {
 	OnInteractionTypeManagerSelect(selectedOptions *[]slack.OptionBlockObject) error
 	OnInteractionTypeThresholdSelect(selectedOption *slack.OptionBlockObject) error
 	OnInteractionTypeVoCViewSubmit(user *slack.User, state *slack.ViewState) error
+	OnInteractionTypeClientCreate(viewId string, state *slack.ViewState) error
+	OnInteractionTypeClientDelete(viewId string, clientId int) error
 	WhoAmI() (*WhoAmI, error)
 	FindTeam() (*slack.TeamInfo, error)
 	FindChannels() ([]slack.Channel, error)
@@ -398,17 +400,16 @@ func (service *slackService) OnLeaveCommand(command slack.SlashCommand) error {
 	return nil
 }
 
-func (service *slackService) OnVoCCommand(command slack.SlashCommand) error {
+func (service *slackService) makeVocModalRequest() (*slack.ModalViewRequest, error) {
 	// header
 	headerText := slack.NewTextBlockObject("mrkdwn", "Register new VoC", false, false)
 	headerSection := slack.NewSectionBlock(headerText, nil, nil)
 
-	// client account
 	clientLabel := slack.NewTextBlockObject("plain_text", "Client", false, false)
 
 	foundClients, err := service.clientService.FindMany()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	clientOptions := funk.Map(foundClients, func(i clients.Client) *slack.OptionBlockObject {
@@ -466,8 +467,19 @@ func (service *slackService) OnVoCCommand(command slack.SlashCommand) error {
 	modalRequest.Submit = submitText
 	modalRequest.Blocks = blocks
 	modalRequest.CallbackID = _const.InteractionTypeVoCViewSubmit
+	modalRequest.ExternalID = "clientModal"
 
-	_, err = service.api.OpenView(command.TriggerID, modalRequest)
+	return &modalRequest, nil
+}
+
+func (service *slackService) OnVoCCommand(command slack.SlashCommand) error {
+	modalRequest, modalErr := service.makeVocModalRequest()
+	if modalErr != nil {
+		logrus.Errorf("%v", modalErr)
+		return errors.New(fiber.StatusInternalServerError, modalErr.Error())
+	}
+
+	_, err := service.api.OpenView(command.TriggerID, *modalRequest)
 	if err != nil {
 		logrus.Errorf("%v", err)
 		return errors.New(fiber.StatusBadRequest, err.Error())
@@ -476,11 +488,17 @@ func (service *slackService) OnVoCCommand(command slack.SlashCommand) error {
 	return nil
 }
 
-func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
+func (service *slackService) makeClientModalRequest() (*slack.ModalViewRequest, error) {
 	foundClients, err := service.clientService.FindMany()
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	inputElement := slack.NewPlainTextInputBlockElement(
+		slack.NewTextBlockObject("plain_text", "Enter new client", false, false),
+		"clientInputChange",
+	)
+	inputElement.InitialValue = ""
 
 	input := slack.NewInputBlock(
 		"addNewClient",
@@ -491,14 +509,11 @@ func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
 			false,
 		),
 		nil,
-		slack.NewPlainTextInputBlockElement(
-			slack.NewTextBlockObject("plain_text", "Enter new client", false, false),
-			"clientInputChange",
-		),
+		inputElement,
 	)
 
 	saveBtnElement := slack.NewButtonBlockElement(
-		"client-save",
+		_const.InteractionTypeClientCreate,
 		"",
 		slack.NewTextBlockObject("plain_text", "Save", false, false),
 	)
@@ -512,7 +527,7 @@ func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
 
 	clientSections := funk.Map(foundClients, func(i clients.Client) *slack.SectionBlock {
 		deleteBtn := slack.NewButtonBlockElement(
-			"client-delete",
+			_const.InteractionTypeClientDelete,
 			strconv.Itoa(int(i.ID)),
 			slack.NewTextBlockObject("plain_text", "Delete", false, false),
 		)
@@ -538,6 +553,7 @@ func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
 			),
 		},
 	}
+
 	// append client list
 	for _, section := range clientSections {
 		blocks.BlockSet = append(blocks.BlockSet, section, slack.NewDividerBlock())
@@ -551,8 +567,18 @@ func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
 	modalRequest.Blocks = blocks
 	modalRequest.Submit = slack.NewTextBlockObject("plain_text", "Ok", false, false)
 	modalRequest.CallbackID = _const.InteractionTypeVoCViewSubmit
+	modalRequest.ClearOnClose = true
 
-	_, slackErr := service.api.OpenView(command.TriggerID, modalRequest)
+	return &modalRequest, nil
+}
+
+func (service *slackService) OnClientCommand(command slack.SlashCommand) error {
+	modalRequest, modalErr := service.makeClientModalRequest()
+	if modalErr != nil {
+		return errors.New(fiber.StatusInternalServerError, modalErr.Error())
+	}
+
+	_, slackErr := service.api.OpenView(command.TriggerID, *modalRequest)
 	if slackErr != nil {
 		errJson, _ := json.MarshalIndent(map[string]interface{}{"err": slackErr}, "", "    ")
 		logrus.Errorf(string(errJson))
@@ -607,7 +633,7 @@ func (service *slackService) OnInteractionTypeVoCViewSubmit(user *slack.User, st
 
 	userWithDetails, apiErr := service.findUserBySlackId(user.ID)
 	if apiErr != nil {
-		return apiErr
+		return errors.New(fiber.StatusServiceUnavailable, apiErr.Error())
 	}
 
 	utils.PrettyPrint([]interface{}{
@@ -625,6 +651,55 @@ func (service *slackService) OnInteractionTypeVoCViewSubmit(user *slack.User, st
 	})
 	if appendErr != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (service *slackService) updateClientModalView(viewId string) error {
+	newModal, err := service.makeClientModalRequest()
+	if err != nil {
+		return err
+	}
+
+	resp, apiErr := service.api.UpdateView(*newModal, "", "", viewId)
+	logrus.Debugf("%v", resp)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	return nil
+}
+
+func (service *slackService) OnInteractionTypeClientCreate(viewId string, state *slack.ViewState) error {
+	_, err := service.clientService.CreateOne(
+		&clients.Client{
+			ClientName: state.Values["addNewClient"]["clientInputChange"].Value,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	updateViewErr := service.updateClientModalView(viewId)
+	if updateViewErr != nil {
+		logrus.Errorf("%v", updateViewErr)
+		return errors.New(fiber.StatusInternalServerError, updateViewErr.Error())
+	}
+
+	return nil
+}
+
+func (service *slackService) OnInteractionTypeClientDelete(viewId string, clientId int) error {
+	_, err := service.clientService.DeleteOne(clientId)
+	if err != nil {
+		return err
+	}
+
+	updateViewErr := service.updateClientModalView(viewId)
+	if updateViewErr != nil {
+		utils.PrettyPrint(updateViewErr)
+		return errors.New(fiber.StatusInternalServerError, updateViewErr.Error())
 	}
 
 	return nil
