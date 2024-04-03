@@ -494,9 +494,10 @@ func (service *slackService) makeClientModalRequest() (*slack.ModalViewRequest, 
 		return nil, err
 	}
 
+	randomActionId, _ := utils.GenerateRandomString(6)
 	inputElement := slack.NewPlainTextInputBlockElement(
 		slack.NewTextBlockObject("plain_text", "Enter new client", false, false),
-		"clientInputChange",
+		randomActionId,
 	)
 	inputElement.InitialValue = ""
 
@@ -672,9 +673,10 @@ func (service *slackService) updateClientModalView(viewId string) error {
 }
 
 func (service *slackService) OnInteractionTypeClientCreate(viewId string, state *slack.ViewState) error {
+	values := utils.MapValues(state.Values["addNewClient"])
 	_, err := service.clientService.CreateOne(
 		&clients.Client{
-			ClientName: state.Values["addNewClient"]["clientInputChange"].Value,
+			ClientName: values[0].Value,
 		},
 	)
 	if err != nil {
