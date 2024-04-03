@@ -62,13 +62,15 @@ func (service *googleService) AppendRow(createVoCDto *dto.CreateVoCDto) error {
 
 	records := [][]interface{}{{
 		time.Now().Format("2006-01-02"),
-		createVoCDto.User.RealName,
-		createVoCDto.IsStakeholder,
 		createVoCDto.Client.ClientName,
+		createVoCDto.IsStakeholder,
+		createVoCDto.User.RealName,
+		"",
 		createVoCDto.VocContent,
 	}}
+	logrus.Debugf("%v", records)
 	row := sheets.ValueRange{MajorDimension: "ROWS", Range: appendRange, Values: records}
-	valueInputOption := "USER_ENTERED"
+	valueInputOption := "RAW"
 	insertDataOption := "INSERT_ROWS"
 
 	resp, err := service.sheetClient.Spreadsheets.Values.Append(service.config.Google.SpreadSheetId, appendRange, &row).ValueInputOption(valueInputOption).InsertDataOption(insertDataOption).Do()
