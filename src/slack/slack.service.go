@@ -673,10 +673,13 @@ func (service *slackService) updateClientModalView(viewId string) error {
 }
 
 func (service *slackService) OnInteractionTypeClientCreate(viewId string, state *slack.ViewState) error {
-	values := utils.MapValues(state.Values["addNewClient"])
+	value := utils.MapValues(state.Values["addNewClient"])[0].Value
+	if value == "" {
+		return errors.New(fiber.StatusBadRequest, "value is empty")
+	}
 	_, err := service.clientService.CreateOne(
 		&clients.Client{
-			ClientName: values[0].Value,
+			ClientName: value,
 		},
 	)
 	if err != nil {
