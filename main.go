@@ -4,7 +4,6 @@ import (
 	"aesir/src/common/utils"
 	"fmt"
 	"github.com/joho/godotenv"
-	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"strings"
@@ -16,7 +15,6 @@ func init() {
 
 	currentWorkDirectory, _ := os.Getwd()
 	envPath := currentWorkDirectory + `/.env/.env.` + appEnv
-	logrus.Infof("envPath: %s", envPath)
 	err := godotenv.Load(envPath)
 	if err != nil {
 		panic("Error loading .env file")
