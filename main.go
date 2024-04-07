@@ -1,11 +1,13 @@
 package main
 
 import (
+	"aesir/src/common/utils"
 	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"log"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -20,10 +22,12 @@ func init() {
 		panic("Error loading .env file")
 	}
 
+	env := map[string]string{}
 	for _, e := range os.Environ() {
-		logrus.Info(e)
+		split := strings.Split(e, "=")
+		env[split[0]] = split[1]
 	}
-
+	utils.PrettyPrint(env)
 }
 
 func main() {
