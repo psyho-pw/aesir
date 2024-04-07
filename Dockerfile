@@ -16,7 +16,6 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o out/aesir .
 FROM alpine:edge as prod
 
 ENV APP_ENV="production"
-ENV PORT=8000
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
