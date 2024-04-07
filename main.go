@@ -11,9 +11,6 @@ import (
 
 func init() {
 	appEnv := os.Getenv("APP_ENV")
-	if appEnv != "development" {
-		return
-	}
 
 	currentWorkDirectory, _ := os.Getwd()
 	envPath := currentWorkDirectory + `/.env/.env.` + appEnv

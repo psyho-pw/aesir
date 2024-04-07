@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine as build
+FROM golang:alpine as build
 
 RUN apk add --no-cache go gcc g++
 RUN apk add --no-cache tzdata ca-certificates
@@ -16,6 +16,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -o out/aesir .
 FROM alpine:edge as prod
 
 ENV APP_ENV="production"
+ENV PORT=8000
 
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo

@@ -59,7 +59,10 @@ docker-run:
   		if [ "$$(docker ps -aq -f status=exited -f name=${BINARY_NAME})" ]; then \
   			docker rm ${BINARY_NAME}; \
         fi; \
-            docker run -it --name ${BINARY_NAME} --env-file=$$(pwd)/.env/.env.production --mount type=bind,source=$$(pwd)/.env,target=/.env -p 8000:8000  fishcreek/${BINARY_NAME}; \
+            docker run -it --name ${BINARY_NAME} \
+              --mount type=bind,source=$$(pwd)/.env,target=/.env \
+              --mount type=bind,source=$$(pwd)/logs,target=/logs \
+               -p 8000:8000  fishcreek/${BINARY_NAME}; \
     fi
 
 analysis:
