@@ -16,7 +16,9 @@ func init() {
 	}
 
 	currentWorkDirectory, _ := os.Getwd()
-	err := godotenv.Load(currentWorkDirectory + `/.env/.env.` + appEnv)
+	envPath := currentWorkDirectory + `/.env/.env.` + appEnv
+	logrus.Infof("envPath: %s", envPath)
+	err := godotenv.Load(envPath)
 	if err != nil {
 		panic("Error loading .env file")
 	}
