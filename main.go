@@ -21,13 +21,6 @@ func init() {
 	if err != nil {
 		panic("Error loading .env file")
 	}
-
-	env := map[string]string{}
-	for _, e := range os.Environ() {
-		split := strings.Split(e, "=")
-		env[split[0]] = split[1]
-	}
-	utils.PrettyPrint(env)
 }
 
 func main() {
@@ -48,5 +41,11 @@ func main() {
 		return ""
 	}(os.Getenv("APP_ENV"))
 
+	env := map[string]string{}
+	for _, e := range os.Environ() {
+		split := strings.Split(e, "=")
+		env[split[0]] = split[1]
+	}
+	utils.PrettyPrint(env)
 	log.Fatal(server.Listen(fmt.Sprintf("%s:%s", address, port)))
 }

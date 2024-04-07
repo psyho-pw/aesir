@@ -22,7 +22,6 @@ COPY --from=build /usr/share/zoneinfo /usr/share/zoneinfo
 ENV TZ=Asia/Seoul
 
 COPY public/ ./public
-#COPY --from=build /go/src/aesir/.env ./
 COPY --from=build /go/src/aesir/out/ ./
 
 #USER 65534
