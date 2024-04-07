@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"time"
@@ -19,6 +20,11 @@ func init() {
 	if err != nil {
 		panic("Error loading .env file")
 	}
+
+	for _, e := range os.Environ() {
+		logrus.Info(e)
+	}
+
 }
 
 func main() {
