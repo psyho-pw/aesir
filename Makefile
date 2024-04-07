@@ -11,7 +11,7 @@ env-down:
 	oci os object get -bn environments --file .env/aesir.json --name ${BINARY_NAME}/.env/aesir.json
 
 run:
-	APP_ENV=development go run main.go
+	APP_ENV=development go run main.go wire_gen.go
 
 compile:
 	echo "Compiling for every OS and Platform"
